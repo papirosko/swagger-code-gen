@@ -53,7 +53,7 @@ export async function <%= method.endpointName %>(
         query = '?' + queryParams.join('&');
     }
     <%_ }  -%>
-    const resp = await fetch(`<%- method.pathWithSubstitutions %>${query}`, {
+    const resp = await fetch(`${swaggerCodeGenParams.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
         method: '<%= method.method %>',
         body: <%= method.body.map(() => 'JSON.stringify(body)').getOrElseValue('undefined') %>,
         headers: {

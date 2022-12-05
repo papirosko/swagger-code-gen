@@ -12,6 +12,14 @@
  *********************************************************/
 import fetch from 'node-fetch';
 
+export interface SwaggerCodeGenParams {
+    apiPrefix: string;
+}
+
+export const swaggerCodeGenParams: SwaggerCodeGenParams = {
+    apiPrefix: ''
+};
+
 <% schemas.foreach(schema => { %>
 <%- include('schema.ejs', {schema: schema}); %>
 <% }); %>
