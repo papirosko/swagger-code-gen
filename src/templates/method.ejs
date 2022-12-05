@@ -65,11 +65,11 @@ export async function <%= method.endpointName %>(
             <%_ }  -%>
         }
     });
-   const json = await resp.json();
    if (resp.ok) {
+       const json = await resp.json();
        return json as <%= method.response.responseType %>;
    } else {
-       throw json;
+       throw resp;
    }
 
 }
