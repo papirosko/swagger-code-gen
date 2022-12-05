@@ -14,7 +14,7 @@ export async function main() {
 
     const { configure, getLogger } = log4js;
 
-    configure(`${__dirname}/config/log4js.json`);
+    configure(`${__dirname}/../config/log4js.json`);
     const logger = getLogger('Generator');
 
     const program = new Command();
