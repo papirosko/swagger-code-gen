@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "swagger-code-gen": "./dist/cli.mjs"
+    "generate-client": "./dist/cli.mjs"
   },
   "repository": {
     "type": "git",

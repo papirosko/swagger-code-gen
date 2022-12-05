@@ -3,11 +3,11 @@ The utility to generate a client for a services, described with openapi.
 
 Install:
 ```shell
-npm install -D swagger-code-gen
+npm install -D @penkov/swagger-code-gen
 ```
 
 
 Usage:
 ```shell
-swagger-code-gen --url <URI> output_filename.ts
+generate-client --url <URI> output_filename.ts
 ```
