@@ -12,7 +12,7 @@ export class Renderer {
                        methods: Collection<Method>,
                        file: string) {
 
-        const view = await ejs.renderFile('./src/templates/index.ejs', {
+        const view = await ejs.renderFile(`${__dirname}/templates/index.ejs`, {
             schemas: schemas,
             methods: methods,
         });
@@ -21,13 +21,13 @@ export class Renderer {
     }
 
     async renderSchema(obj: Collection<Schema>) {
-        return await ejs.renderFile('./src/templates/index.ejs', {
+        return await ejs.renderFile(`${__dirname}/templates/index.ejs`, {
             schemas: obj
         });
     }
 
     async renderMethod(obj: Collection<Method>) {
-        return (await obj.mapPromise(m => ejs.renderFile('./src/templates/method.ejs', {
+        return (await obj.mapPromise(m => ejs.renderFile(`${__dirname}/templates/method.ejs`, {
             method: m
         }))).mkString('\n');
     }
