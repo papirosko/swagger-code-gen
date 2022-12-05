@@ -1,5 +1,5 @@
 {
-  "name": "swagger-code-gen",
+  "name": "@penkov/swagger-code-gen",
   "version": "1.0.0",
   "type": "module",
   "bin": {
