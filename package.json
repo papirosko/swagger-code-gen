@@ -25,7 +25,8 @@
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
-    "build": "tsc && chmod +x ./dist/cli.mjs"
+    "copy-files": "mkdir -p ./dist/templates && cp ./src/templates/* ./dist/templates/",
+    "build": "tsc && chmod +x ./dist/cli.mjs && npm run copy-files"
   },
   "dependencies": {
     "commander": "^9.4.1",
