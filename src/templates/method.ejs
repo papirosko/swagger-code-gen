@@ -1,0 +1,75 @@
+/**
+ * <%= method.method.toUpperCase() %> <%= method.path %>
+<% if (method.parameters.size > 2) { -%>
+ * @param {Object} params
+<% } -%>
+<% method.parameters.foreach(p => { -%>
+ * @param {<%= p.jsType %>} <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
+<% }); -%>
+<%_ if (method.body.nonEmpty) { -%>
+ * @param {<%= method.body.get.type %>} body
+<%_ } -%>
+ * @param {RequestOptions} requestOptions Additional request params
+ * @summary <%= method.summary %>
+ * @return {<%= method.response.responseType %>} <%= method.response.description %>
+ */
+export async function <%= method.endpointName %>(
+    <%_ if (method.parameters.size <= 2) { -%>
+    <%_ method.parameters.foreach(p => { -%>
+    <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+    <%_ }) -%>
+    <%_ } else { -%>
+    params: {
+        <%_ method.parameters.foreach(p => { -%>
+        <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+        <%_ }) -%>
+    },
+    <%_ } -%>
+    <%_ if (method.body.nonEmpty) { -%>
+    body: <%= method.body.get.type %>,
+    <%_ } -%>
+    requestOptions: RequestOptions = defaultRequestOptions
+): Promise<<%= method.response.responseType %>> {
+    let query = '';
+    <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
+    const queryParams = [];
+    <%_ method.parameters.filter(x => x.in === 'query' && x.required).foreach(p => { -%>
+    <%_ if (p.jsType === 'string') { -%>
+    queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>)}`);
+    <%_ } else { -%>
+    queryParams.push(`<%= p.name %>=${<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>}`);
+    <%_ }  -%>
+    <%_ }) -%>
+    <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
+    if (!!<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>) {
+        <%_ if (p.jsType === 'string') { -%>
+        queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>)}`);
+        <%_ } else { -%>
+        queryParams.push(`<%= p.name %>=${<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>}`);
+        <%_ }  -%>
+    }
+    <%_ }) -%>
+    if (queryParams.length > 0) {
+        query = '?' + queryParams.join('&');
+    }
+    <%_ }  -%>
+    const resp = await fetch(`<%- method.pathWithSubstitutions %>${query}`, {
+        method: '<%= method.method %>',
+        body: <%= method.body.map(() => 'JSON.stringify(body)').getOrElseValue('undefined') %>,
+        headers: {
+            ...requestOptions.headers,
+            <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
+            <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
+            <%= p.name %>: <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>
+            <%_ }) -%>
+            <%_ }  -%>
+        }
+    });
+   const json = await resp.json();
+   if (resp.ok) {
+       return json as <%= method.response.responseType %>;
+   } else {
+       throw json;
+   }
+
+}

@@ -1,0 +1,10 @@
+.idea
+.eslintrc.cjs
+src
+*.iml
+dist/*.tsbuildinfo
+test
+jest.config.ts
+package-lock.json
+tsconfig.json
+tsconfig-eslint.json

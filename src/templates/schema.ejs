@@ -1,0 +1,13 @@
+<%_ if (schema.schemaType === 'object') { -%>
+export interface <%= schema.name %> {
+    <%_ schema.properties.foreach(p => { -%>
+    readonly <%= p.name %><%= p.nullable ? '?' : '' %>: <%= p.jsType %>;
+    <%_ }); -%>
+}
+<%_ } if (schema.schemaType === 'enum') { -%>
+export enum <%= schema.name %> {
+    <%_ schema.values.foreach(p => { -%>
+    <%= p %> = '<%= p %>',
+    <%_ }); -%>
+}
+<%_ } -%>
