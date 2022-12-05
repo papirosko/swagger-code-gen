@@ -5,6 +5,22 @@
   "bin": {
     "swagger-code-gen": "./dist/cli.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papirosko/swagger-code-gen"
+  },
+  "keywords": [
+    "swagger",
+    "openapi",
+    "typescript",
+    "code generator"
+  ],
+  "author": "penkov.vladimir@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/papirosko/swagger-code-gen/issues"
+  },
+  "homepage": "https://github.com/papirosko/swagger-code-gen#readme",
   "scripts": {
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
