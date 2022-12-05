@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"
@@ -25,6 +25,7 @@
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
+    "test": "generate-client --url https://api.techloq-uat.com/accounts/swagger/2.0/swagger.json accounts.ts",
     "copy-files": "mkdir -p ./dist/templates && cp ./src/templates/* ./dist/templates/",
     "build": "tsc && chmod +x ./dist/cli.mjs && npm run copy-files"
   },
