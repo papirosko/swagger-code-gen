@@ -28,7 +28,7 @@ export async function <%= method.endpointName %>(
     <%_ if (method.body.nonEmpty) { -%>
     body: <%= method.body.get.type %>,
     <%_ } -%>
-    requestOptions: RequestOptions = defaultRequestOptions
+    requestOptions: RequestOptions = defaultRequestOptions()
 ): Promise<<%= method.response.responseType %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
