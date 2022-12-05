@@ -4,13 +4,18 @@ import fetch from 'node-fetch';
 import {Renderer} from './renderer.js';
 import {resolvePaths, resolveSchemas} from './components-parse.js';
 
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function main() {
 
     const { configure, getLogger } = log4js;
 
-    configure('./config/log4js.json');
-    const logger = getLogger('Main');
+    configure(`${__dirname}/config/log4js.json`);
+    const logger = getLogger('Generator');
 
     const program = new Command();
     program
