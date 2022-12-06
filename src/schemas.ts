@@ -8,6 +8,10 @@ export interface Schema {
     readonly schemaType: SchemaType;
 }
 
+export interface GenerationOptions {
+    referencedObjectsNullableByDefault: boolean;
+}
+
 export class SchemaFactory {
 
     static resolveSchemaType(def: OpenApiSchema): SchemaType {
@@ -21,21 +25,24 @@ export class SchemaFactory {
     }
 
 
-    static build(name: string, def: OpenApiSchema, schemasTypes: HashMap<string, SchemaType>): Schema {
+    static build(name: string,
+                 def: OpenApiSchema,
+                 schemasTypes: HashMap<string, SchemaType>,
+                 options: GenerationOptions): Schema {
         if (def.type === 'object') {
-            return SchemaObject.fromDefinition(name, def, schemasTypes);
+            return SchemaObject.fromDefinition(name, def, schemasTypes, options);
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
         } else if (def.type === 'string') {
-            return Property.fromDefinition(name, def, schemasTypes);
+            return Property.fromDefinition(name, def, schemasTypes, options);
         } else if (def.type === 'boolean') {
-            return Property.fromDefinition(name, def, schemasTypes);
+            return Property.fromDefinition(name, def, schemasTypes, options);
         } else if (def.type === 'integer') {
-            return Property.fromDefinition(name, def, schemasTypes);
+            return Property.fromDefinition(name, def, schemasTypes, options);
         } else if (def.type === 'array') {
-            return Property.fromDefinition(name, def, schemasTypes);
+            return Property.fromDefinition(name, def, schemasTypes, options);
         } else {
-            return Property.fromDefinition(name, def, schemasTypes);
+            return Property.fromDefinition(name, def, schemasTypes, options);
             // throw new Error(`unsupported schema type: ${def.type}`);
         }
 
@@ -69,9 +76,12 @@ export class SchemaObject implements Schema {
                           readonly properties: Collection<Property>) {
     }
 
-    static fromDefinition(name: string, def: OpenApiSchema, schemasTypes: HashMap<string, SchemaType>) {
+    static fromDefinition(name: string,
+                          def: OpenApiSchema,
+                          schemasTypes: HashMap<string, SchemaType>,
+                          options: GenerationOptions) {
         const properties = Collection.from(Object.keys(def.properties)).map(p =>
-            Property.fromDefinition(p, def.properties[p], schemasTypes)
+            Property.fromDefinition(p, def.properties[p], schemasTypes, options)
         );
         return new SchemaObject(name, def.title, def.type, properties);
     }

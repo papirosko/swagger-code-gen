@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"

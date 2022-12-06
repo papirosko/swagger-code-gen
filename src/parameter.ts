@@ -1,5 +1,5 @@
 import {OpenApiParam} from './openapi.js';
-import {SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
+import {GenerationOptions, SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 import {Collection, HashMap, identity, Option, option} from 'scats';
 import {Method} from './method.js';
 import {Property} from './property.js';
@@ -17,12 +17,12 @@ export class Parameter {
         this.in = inValue;
     }
 
-    static fromDefinition(def: OpenApiParam, schemas: HashMap<string, SchemaType>): Parameter {
+    static fromDefinition(def: OpenApiParam, schemas: HashMap<string, SchemaType>, options: GenerationOptions): Parameter {
         const name = Parameter.toJSName(def.name);
         const inValue = def.in;
         const desc = option(def.description);
         const required = option(def.required).exists(identity);
-        const schema = SchemaFactory.build(def.name, def.schema, schemas);
+        const schema = SchemaFactory.build(def.name, def.schema, schemas, options);
         let jsType: string;
         if (schema instanceof SchemaObject) {
             jsType = schema.type;

@@ -1,6 +1,6 @@
 import {OpenApiProperty} from './openapi.js';
 import {Collection, HashMap, Option, option} from 'scats';
-import {Schema, SchemaType} from './schemas.js';
+import {GenerationOptions, Schema, SchemaType} from './schemas.js';
 
 const SCHEMA_PREFIX = '#/components/schemas/';
 
@@ -19,9 +19,25 @@ export class Property implements Schema {
                 readonly itemReferencesObject: boolean) {
     }
 
+
+    copy(p: Partial<Property>): Property {
+        return new Property(
+            option(p.name).getOrElseValue(this.name),
+            option(p.type).getOrElseValue(this.type),
+            option(p.description).getOrElseValue(this.description),
+            option(p.defaultValue).getOrElseValue(this.defaultValue),
+            option(p.nullable).getOrElseValue(this.nullable),
+            option(p.required).getOrElseValue(this.required),
+            option(p.items).getOrElseValue(this.items),
+            option(p.referencesObject).getOrElseValue(this.referencesObject),
+            option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
+        );
+    }
+
     static fromDefinition(name: string,
                           definition: OpenApiProperty,
-                          schemas: HashMap<string, SchemaType>) {
+                          schemas: HashMap<string, SchemaType>,
+                          options: GenerationOptions) {
 
         const referencesObject = option(definition.$ref)
             .exists(ref => schemas.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
@@ -33,9 +49,13 @@ export class Property implements Schema {
         const type = option(definition.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .getOrElseValue(definition.type);
-        const nullable = option(definition.nullable).contains(true);
+
+        const nullable = option(definition.nullable).contains(true) ||
+            (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false));
+
         const description = option(definition.description);
         const required = option(definition.required).contains(true);
+
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElseValue(option(definition.items?.type))

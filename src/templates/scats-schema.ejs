@@ -15,7 +15,7 @@ export class <%= schema.name %>Dto {
             <%_ if (p.required || !p.nullable) { _%>
             <%- p.scatsWrapperType %>.fromJson(json.<%= p.name %>),
             <%_ } else { _%>
-            option(json.<%= p.name %>).map(_ => <%- p.scatsWrapperType %>.fromJson(_)),
+            option(json.<%= p.name %>).map(_ => <%- p.type %>Dto.fromJson(_)),
             <%_ } _%>
             <%_ } else if (p.isArray) { _%>
             Collection.from(option(json.<%= p.name %>).getOrElseValue([]))

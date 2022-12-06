@@ -5,11 +5,12 @@ import {resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-pa
 
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
+import {GenerationOptions} from './schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export async function main(url: string, enableScats: boolean, outputFile: string) {
+export async function main(url: string, enableScats: boolean, outputFile: string, options: GenerationOptions) {
 
     const { configure, getLogger } = log4js;
 
@@ -24,8 +25,8 @@ export async function main(url: string, enableScats: boolean, outputFile: string
         .then(res => res.json())
         .then(async (json: any) => {
             const schemasTypes = resolveSchemasTypes(json);
-            const schemas = resolveSchemas(json, schemasTypes);
-            const paths = resolvePaths(json, schemasTypes);
+            const schemas = resolveSchemas(json, schemasTypes, options);
+            const paths = resolvePaths(json, schemasTypes, options);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
             await renderer.renderToFile(schemas.values, paths, enableScats, outputFile);
