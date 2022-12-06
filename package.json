@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"
@@ -24,7 +24,6 @@
   "scripts": {
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
-    "test": "ts-node-esm src/cli.mjs --enableScats --url https://api.techloq-uat.com/accounts/swagger/2.0/swagger.json accounts.ts && ts-node-esm src/cli.mjs --enableScats --url https://api.techloq-uat.com/filter-profiles/swagger/2.0/swagger.json filter-profiles.ts",
     "prebuild": "npm run lint && npm run clean",
     "copy-files": "mkdir -p ./dist/templates && cp -R ./src/templates/* ./dist/templates/",
     "build": "tsc && chmod +x ./dist/cli.mjs && npm run copy-files"
@@ -35,7 +34,6 @@
     "log4js": "^6.7.1",
     "node-fetch": "^3.3.0",
     "scats": "^1.3.0",
-    "ts-node": "^10.9.1",
     "tslib": "^2.4.1"
   },
   "devDependencies": {
@@ -44,6 +42,7 @@
     "@typescript-eslint/parser": "^5.10.2",
     "eslint": "^7.30.0",
     "rimraf": "^3.0.2",
+    "ts-node": "^10.9.1",
     "typescript": "^4.9.3"
   }
 }

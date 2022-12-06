@@ -1,11 +1,10 @@
-import {Command} from 'commander';
 import log4js from 'log4js';
 import fetch from 'node-fetch';
 import {Renderer} from './renderer.js';
 import {resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-parse.js';
 
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import {fileURLToPath} from 'url';
+import {dirname} from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

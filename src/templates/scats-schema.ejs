@@ -3,11 +3,7 @@ export class <%= schema.name %>Dto {
 
     constructor(
         <%_ schema.properties.foreach(p => { -%>
-        <%_ if (!p.isArray && p.nullable) { -%>
-        readonly <%= p.name %>: Option<<%- p.scatsWrapperType %>>,
-        <%_ } else { -%>
         readonly <%= p.name %>: <%- p.scatsWrapperType %>,
-        <%_ }  -%>
         <%_ }); -%>
     ) {}
 

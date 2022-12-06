@@ -6,7 +6,7 @@ const SCHEMA_PREFIX = '#/components/schemas/';
 
 export class Property implements Schema {
 
-    readonly schemaType = "property";
+    readonly schemaType = 'property';
 
     constructor(readonly name: string,
                 readonly type: string,
@@ -49,18 +49,6 @@ export class Property implements Schema {
         return Property.toJsType(this.type, this.items);
     }
 
-    get scatsType(): string {
-        switch (this.type) {
-            case 'array': {
-                if (this.itemReferencesObject) {
-                    return `Collection<${this.items}Dto>`;
-                } else {
-                    return `Collection<${Property.toJsType(this.items)}>`;
-                }
-            }
-            default: return this.jsType;
-        }
-    }
     get isArray(): boolean {
         return this.type === 'array';
     }
@@ -74,21 +62,53 @@ export class Property implements Schema {
     }
 
 
+    /**
+     * If the property is array, then return scats wrapper type for item property,
+     * else return scatsWrapperType for main type.
+     * Examples:
+     * - schema { type=array, item=Foo } => FooDto
+     * - schema { type=array, item=Foo, nullable=true } => FooDto
+     * - schema { type=array, item=number } => number
+     * - schema { type=array, ref=number, nullable=true } => number
+     *
+     * - schema { type=object, ref=Foo } => FooDto
+     * - schema { type=object, ref=Foo, nullable=true } => Option<FooDto>
+     * - schema { type=number } => number
+     * - schema { type=object, ref=number, nullable=true } => Option<number>
+     */
     get itemScatsWrapperType(): string {
         if (this.isArray) {
-            return `${this.items}Dto`;
+            if (this.itemReferencesObject) {
+                return `${this.items}Dto`;
+            } else {
+                return Property.toJsType(this.items);
+            }
+
         } else {
             return this.scatsWrapperType;
         }
     }
 
+    /**
+     * returns the type of the wrapper object in case the property type is object,
+     * or the actual property type.
+     * Examples:
+     * - schema { type=object, ref=Foo } => FooDto
+     * - schema { type=object, ref=Foo, nullable=true } => Option<FooDto>
+     * - schema { type=array, item=Foo } => Collection<FooDto>
+     * - schema { type=array, item=Foo, nullable=true } => Collection<FooDto>
+     * - schema { type=number } => number
+     * - schema { type=object, ref=number, nullable=true } => Option<number>
+     * - schema { type=array, item=number } => Collection<number>
+     * - schema { type=array, ref=number, nullable=true } => Collection<number>
+     */
     get scatsWrapperType(): string {
         if (this.referencesObject) {
-            return `${this.type}Dto`;
-        } else if (this.isArray && this.itemReferencesObject) {
-            return `Collection<${this.items}Dto>`;
+            return this.nullable ? `Option<${this.type}Dto>` : `${this.type}Dto`;
+        } else if (this.isArray) {
+            return this.itemReferencesObject ? `Collection<${this.items}Dto>` : `Collection<${Property.toJsType(this.items)}>`;
         } else {
-            return this.scatsType;
+            return this.nullable ? `Option<${this.jsType}>` : this.jsType;
         }
     }
 }

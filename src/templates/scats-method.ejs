@@ -8,25 +8,25 @@ export class ApiClient {
     async <%= method.endpointName %>(
         <%_ if (method.parameters.size <= 2) { -%>
         <%_ method.parameters.foreach(p => { -%>
-        <%= p.uniqueName %>: <%- p.required ? p.jsType : `Option<${p.jsType}> = none` %>,
+        <%= p.uniqueName %>: <%- p.required && !p.nullable ? p.jsType : `Option<${p.jsType}> = none` %>,
         <%_ }) -%>
         <%_ } else { -%>
         params: {
             <%_ method.parameters.foreach(p => { -%>
-            <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+            <%= p.uniqueName %><%= p.required && !p.nullable ? '' : '?'%>: <%= p.jsType %>,
             <%_ }) -%>
         },
         <%_ } -%>
-        <%_ if (method.body.nonEmpty) { -%>
-        body: <%= method.body.get.type %>,
-        <%_ } -%>
+        <%_ method.body.foreach(body => { -%>
+        body: <%= body.type %>,
+        <%_ }); -%>
         requestOptions: RequestOptions = this.requestOptions
     ): Promise<TryLike<<%- method.response.asProperty.scatsWrapperType %>>> {
         return (await Try.promise(() =>
                 <%= method.endpointName %>(
                     <%_ if (method.parameters.size <= 2) { -%>
                     <%_ method.parameters.foreach(p => { -%>
-                    <%= p.uniqueName %><%- p.required ? '' : `.orUndefined` %>,
+                    <%= p.uniqueName %><%- p.required && !p.nullable ? '' : `.orUndefined` %>,
                     <%_ }) -%>
                     <%_ } else { -%>
                     params,

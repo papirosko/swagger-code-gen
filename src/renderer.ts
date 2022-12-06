@@ -21,7 +21,7 @@ export class Renderer {
                        file: string) {
 
         const view = await ejs.renderFile(
-            path.resolve(__dirname, `templates/index.ejs`),
+            path.resolve(__dirname, 'templates/index.ejs'),
             {
             schemas: schemas,
             methods: methods,

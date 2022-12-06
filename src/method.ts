@@ -2,7 +2,7 @@ import {OpenApiMethod} from './openapi.js';
 import {Collection, HashMap, identity, Option, option} from 'scats';
 import {Property} from './property.js';
 import {Parameter} from './parameter.js';
-import {Schema, SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
+import {Schema, SchemaFactory, SchemaType} from './schemas.js';
 
 
 export interface ResponseDetails {
