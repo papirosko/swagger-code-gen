@@ -1,5 +1,5 @@
 import {OpenApiProperty} from './openapi.js';
-import {HashMap, identity, Option, option} from 'scats';
+import {Collection, HashMap, Option, option} from 'scats';
 import {Schema, SchemaType} from './schemas.js';
 
 const SCHEMA_PREFIX = '#/components/schemas/';
@@ -33,12 +33,24 @@ export class Property implements Schema {
         const type = option(definition.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .getOrElseValue(definition.type);
-        const nullable = option(definition.nullable).exists(identity);
+        const nullable = option(definition.nullable).contains(true);
         const description = option(definition.description);
-        const required = option(definition.required).exists(identity);
+        const required = option(definition.required).contains(true);
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElseValue(option(definition.items?.type))
+            .orElse(() =>
+                option(definition.items?.oneOf)
+                    .map(x => Collection.from(x))
+                    .filter(x => x.nonEmpty)
+                    .map(x =>
+                        x.flatMapOption(oneOfItem =>
+                            option(oneOfItem.$ref)
+                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
+                                .orElseValue(option(oneOfItem.type))
+                        ).mkString(' | ')
+                    )
+            )
             .getOrElseValue('any');
 
         return new Property(name, type, description, null, nullable, required, items, referencesObject, itemReferencesObject);
@@ -56,7 +68,7 @@ export class Property implements Schema {
     static toJsType(tpe: string, itemTpe = 'any'): string {
         switch (tpe) {
             case 'integer': return 'number';
-            case 'array': return `readonly ${Property.toJsType(itemTpe)}[]`;
+            case 'array': return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
             default: return tpe;
         }
     }
@@ -106,7 +118,11 @@ export class Property implements Schema {
         if (this.referencesObject) {
             return this.nullable ? `Option<${this.type}Dto>` : `${this.type}Dto`;
         } else if (this.isArray) {
-            return this.itemReferencesObject ? `Collection<${this.items}Dto>` : `Collection<${Property.toJsType(this.items)}>`;
+            if (this.itemReferencesObject) {
+                return `Collection<${this.items}Dto>`;
+            } else {
+                return `Collection<${Property.toJsType(this.items)}>`;
+            }
         } else {
             return this.nullable ? `Option<${this.jsType}>` : this.jsType;
         }

@@ -13,7 +13,7 @@ export class ApiClient {
         <%_ } else { -%>
         params: {
             <%_ method.parameters.foreach(p => { -%>
-            <%= p.uniqueName %><%= p.required && !p.nullable ? '' : '?'%>: <%= p.jsType %>,
+            <%= p.uniqueName %><%= p.required && !p.nullable ? '' : '?'%>: <%- p.jsType %>,
             <%_ }) -%>
         },
         <%_ } -%>

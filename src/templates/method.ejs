@@ -16,12 +16,12 @@
 export async function <%= method.endpointName %>(
     <%_ if (method.parameters.size <= 2) { -%>
     <%_ method.parameters.foreach(p => { -%>
-    <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+    <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %>,
     <%_ }) -%>
     <%_ } else { -%>
     params: {
         <%_ method.parameters.foreach(p => { -%>
-        <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+        <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %>,
         <%_ }) -%>
     },
     <%_ } -%>
@@ -29,7 +29,7 @@ export async function <%= method.endpointName %>(
     body: <%= method.body.get.type %>,
     <%_ } -%>
     requestOptions: RequestOptions = defaultRequestOptions()
-): Promise<<%= method.response.responseType %>> {
+): Promise<<%- method.response.responseType %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
     const queryParams = [];
@@ -72,7 +72,7 @@ export async function <%= method.endpointName %>(
             .map(cb => cb(preprocessed, resp))
             .getOrElseValue(resp);
         const json = await postprocessed.json();
-        return json as <%= method.response.responseType %>;
+        return json as <%- method.response.responseType %>;
     } else {
         throw resp;
     }

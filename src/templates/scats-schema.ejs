@@ -12,7 +12,11 @@ export class <%= schema.name %>Dto {
         return new <%= schema.name %>Dto(
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
+            <%_ if (p.required || !p.nullable) { _%>
             <%- p.scatsWrapperType %>.fromJson(json.<%= p.name %>),
+            <%_ } else { _%>
+            option(json.<%= p.name %>).map(_ => <%- p.scatsWrapperType %>.fromJson(_)),
+            <%_ } _%>
             <%_ } else if (p.isArray) { _%>
             Collection.from(option(json.<%= p.name %>).getOrElseValue([]))
                 <% if (p.itemReferencesObject) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>,

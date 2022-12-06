@@ -10,6 +10,7 @@ export interface OpenApiProperty {
     $ref?: string;
     enum?: string[];
     items?: OpenApiProperty;
+    oneOf?: OpenApiProperty[];
 }
 
 
