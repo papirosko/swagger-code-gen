@@ -10,32 +10,28 @@
  *********************************************************
  *********************************************************
  *********************************************************/
-import fetch from 'node-fetch';
+import fetch, {Request, Response} from 'node-fetch';
 <% if (scats) {%>
 import {option, Option, Collection, Try, TryLike, none} from 'scats';
 <% } %>
 
 export interface RequestOptions {
-    headers: Record<string, string>;
+    apiPrefix?: string;
+    headers?: Record<string, string>;
+    preProcessRequest?: (request: Request) => Request;
+    postProcessResponse?: (request: Request, response: Response) => Response;
 }
 
 
-export interface SwaggerCodeGenParams {
-    apiPrefix: string;
-    requestOptions: RequestOptions
-}
-
-export const swaggerCodeGenParams: SwaggerCodeGenParams = {
+export const defaultReqOpts: RequestOptions = {
     apiPrefix: '',
-    requestOptions: {
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
     }
 };
 
-const defaultRequestOptions = () => swaggerCodeGenParams.requestOptions;
+const defaultRequestOptions = () => defaultReqOpts;
 
 <% schemas.foreach(schema => { %>
 <%- include('schema.ejs', {schema: schema}); %>

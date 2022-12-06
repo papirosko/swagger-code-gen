@@ -53,11 +53,11 @@ export async function <%= method.endpointName %>(
         query = '?' + queryParams.join('&');
     }
     <%_ }  -%>
-    const resp = await fetch(`${swaggerCodeGenParams.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
+    const request = new Request(`${requestOptions.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
         method: '<%= method.method %>',
         body: <%= method.body.map(() => 'JSON.stringify(body)').getOrElseValue('undefined') %>,
         headers: {
-            ...requestOptions.headers,
+            ...option(requestOptions.headers).getOrElseValue({}),
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
             <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
             <%= p.name %>: <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>
@@ -65,11 +65,15 @@ export async function <%= method.endpointName %>(
             <%_ }  -%>
         }
     });
-   if (resp.ok) {
-       const json = await resp.json();
-       return json as <%= method.response.responseType %>;
-   } else {
-       throw resp;
-   }
-
+    const preprocessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
+    const resp = await fetch(preprocessed);
+    if (resp.ok) {
+        const postprocessed = option(requestOptions.postProcessResponse)
+            .map(cb => cb(preprocessed, resp))
+            .getOrElseValue(resp);
+        const json = await postprocessed.json();
+        return json as <%= method.response.responseType %>;
+    } else {
+        throw resp;
+    }
 }
