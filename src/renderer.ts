@@ -17,13 +17,15 @@ export class Renderer {
 
     async renderToFile(schemas: Collection<Schema | Property>,
                        methods: Collection<Method>,
+                       enableScats: boolean,
                        file: string) {
 
         const view = await ejs.renderFile(
-            path.resolve(__dirname, 'templates/index.ejs'),
+            path.resolve(__dirname, `templates/index.ejs`),
             {
             schemas: schemas,
             methods: methods,
+            scats: enableScats
         });
 
         fs.writeFileSync(file, view);

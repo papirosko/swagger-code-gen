@@ -24,8 +24,9 @@
   "scripts": {
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "test": "ts-node-esm src/cli.mjs --enableScats --url https://api.techloq-uat.com/accounts/swagger/2.0/swagger.json accounts.ts && ts-node-esm src/cli.mjs --enableScats --url https://api.techloq-uat.com/filter-profiles/swagger/2.0/swagger.json filter-profiles.ts",
     "prebuild": "npm run lint && npm run clean",
-    "copy-files": "mkdir -p ./dist/templates && cp ./src/templates/* ./dist/templates/",
+    "copy-files": "mkdir -p ./dist/templates && cp -R ./src/templates/* ./dist/templates/",
     "build": "tsc && chmod +x ./dist/cli.mjs && npm run copy-files"
   },
   "dependencies": {

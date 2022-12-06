@@ -1,7 +1,8 @@
 import {OpenApiParam} from './openapi.js';
-import {SchemaEnum, SchemaFactory, SchemaObject} from './schemas.js';
-import {Collection, identity, Option, option} from 'scats';
+import {SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
+import {Collection, HashMap, identity, Option, option} from 'scats';
 import {Method} from './method.js';
+import {Property} from './property.js';
 
 export class Parameter {
 
@@ -16,19 +17,21 @@ export class Parameter {
         this.in = inValue;
     }
 
-    static fromDefinition(def: OpenApiParam): Parameter {
+    static fromDefinition(def: OpenApiParam, schemas: HashMap<string, SchemaType>): Parameter {
         const name = Parameter.toJSName(def.name);
         const inValue = def.in;
         const desc = option(def.description);
         const required = option(def.required).exists(identity);
-        const schema = SchemaFactory.build(def.name, def.schema);
+        const schema = SchemaFactory.build(def.name, def.schema, schemas);
         let jsType: string;
         if (schema instanceof SchemaObject) {
             jsType = schema.type;
         } else if (schema instanceof SchemaEnum) {
             jsType = schema.name;
-        } else {
+        } else if (schema instanceof Property) {
             jsType = schema.jsType;
+        } else {
+            throw new Error('Unknown schema type');
         }
         return new Parameter(name, name, inValue, jsType, required, desc);
     }

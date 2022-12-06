@@ -1,0 +1,52 @@
+export class ApiClient {
+
+    constructor(private readonly requestOptions: RequestOptions = swaggerCodeGenParams.requestOptions) {
+    }
+
+
+    <% methods.foreach(method => { %>
+    async <%= method.endpointName %>(
+        <%_ if (method.parameters.size <= 2) { -%>
+        <%_ method.parameters.foreach(p => { -%>
+        <%= p.uniqueName %>: <%- p.required ? p.jsType : `Option<${p.jsType}> = none` %>,
+        <%_ }) -%>
+        <%_ } else { -%>
+        params: {
+            <%_ method.parameters.foreach(p => { -%>
+            <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%= p.jsType %>,
+            <%_ }) -%>
+        },
+        <%_ } -%>
+        <%_ if (method.body.nonEmpty) { -%>
+        body: <%= method.body.get.type %>,
+        <%_ } -%>
+        requestOptions: RequestOptions = this.requestOptions
+    ): Promise<TryLike<<%- method.response.asProperty.scatsWrapperType %>>> {
+        return (await Try.promise(() =>
+                <%= method.endpointName %>(
+                    <%_ if (method.parameters.size <= 2) { -%>
+                    <%_ method.parameters.foreach(p => { -%>
+                    <%= p.uniqueName %><%- p.required ? '' : `.orUndefined` %>,
+                    <%_ }) -%>
+                    <%_ } else { -%>
+                    params,
+                    <%_ } -%>
+                    <%_ if (method.body.nonEmpty) { -%>
+                    body,
+                    <%_ } -%>
+                    requestOptions
+                )
+            ))
+            <%_ if (method.response.asProperty.referencesObject) { _%>
+            .map(res => <%- method.response.asProperty.scatsWrapperType %>.fromJson(res))
+            <%_ } else if (method.response.asProperty.isArray) { _%>
+            .map(res => Collection.from(option(res).getOrElseValue([])))
+            <%_ if (method.response.asProperty.itemReferencesObject) { _%>
+            .map(items => items.map(i => <%- method.response.asProperty.itemScatsWrapperType %>.fromJson(i)))
+            <%_ } _%>
+            <%_ } _%>;
+    }
+    <% }); %>
+
+
+}

@@ -2,10 +2,11 @@ import {OpenApiMethod} from './openapi.js';
 import {Collection, HashMap, identity, Option, option} from 'scats';
 import {Property} from './property.js';
 import {Parameter} from './parameter.js';
-import {SchemaEnum, SchemaFactory, SchemaObject} from './schemas.js';
+import {Schema, SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 
 
 export interface ResponseDetails {
+    asProperty: Property;
     responseType: string;
     description?: string;
 }
@@ -24,16 +25,16 @@ export class Method {
     readonly summary?: string;
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
-    private readonly body: Option<SchemaEnum | SchemaObject | Property>;
+    private readonly body: Option<Schema>;
 
 
-    constructor(readonly path: string, readonly method: string, def: OpenApiMethod) {
+    constructor(readonly path: string, readonly method: string, def: OpenApiMethod, schemasTypes: HashMap<string, SchemaType>) {
         this.tags = option(def.tags).getOrElseValue([]);
         this.summary = def.summary;
 
 
         const parameters = Collection.from(def.parameters)
-            .map(p => Parameter.fromDefinition(p))
+            .map(p => Parameter.fromDefinition(p, schemasTypes))
             .sort((a, b) => {
                 const r1 = a.required ? 1 : 0;
                 const r2 = b.required ? 1 : 0;
@@ -61,7 +62,7 @@ export class Method {
                 return mimeTypes
                     .find(_ => _ === 'application/json')
                     .orElseValue(mimeTypes.headOption)
-                    .map(mt => SchemaFactory.build('body', body[mt].schema));
+                    .map(mt => SchemaFactory.build('body', body[mt].schema, schemasTypes));
             });
 
 
@@ -81,12 +82,14 @@ export class Method {
 
         this.response = mimeTypes.get('application/json')
             .orElseValue(mimeTypes.values.headOption)
-            .map(p => new Property('', p.schema))
+            .map(p => Property.fromDefinition('', p.schema, schemasTypes))
             .map(r => ({
+                asProperty: r,
                 responseType: r.jsType,
                 description: respDef.description
             } as ResponseDetails))
             .getOrElseValue(({
+                asProperty: Property.fromDefinition('UNKNOWN', { type: 'any'}, schemasTypes),
                 responseType: 'any'
             }));
 

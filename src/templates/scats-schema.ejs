@@ -1,0 +1,42 @@
+<%_ if (schema.schemaType === 'object') { -%>
+export class <%= schema.name %>Dto {
+
+    constructor(
+        <%_ schema.properties.foreach(p => { -%>
+        <%_ if (!p.isArray && p.nullable) { -%>
+        readonly <%= p.name %>: Option<<%- p.scatsWrapperType %>>,
+        <%_ } else { -%>
+        readonly <%= p.name %>: <%- p.scatsWrapperType %>,
+        <%_ }  -%>
+        <%_ }); -%>
+    ) {}
+
+
+    static fromJson(json: <%= schema.name %>): <%= schema.name %>Dto {
+        return new <%= schema.name %>Dto(
+            <%_ schema.properties.foreach(p => { _%>
+            <%_ if (p.referencesObject) { _%>
+            <%- p.scatsWrapperType %>.fromJson(json.<%= p.name %>),
+            <%_ } else if (p.isArray) { _%>
+            Collection.from(option(json.<%= p.name %>).getOrElseValue([]))
+                <% if (p.itemReferencesObject) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>,
+            <%_ } else if (p.required || !p.nullable) { _%>
+            json.<%= p.name %>,
+            <%_ } else { _%>
+            option(json.<%= p.name %>),
+            <%_ } _%>
+            <%_ }); _%>
+        );
+    }
+
+    copy(fields: Partial<<%= schema.name %>Dto>): <%= schema.name %>Dto {
+        return new <%= schema.name %>Dto(
+        <%_ schema.properties.foreach(p => { -%>
+            option(fields.<%= p.name %>).getOrElseValue(this.<%= p.name %>),
+        <%_ });  -%>
+        );
+    }
+}
+
+<%_ } -%>
+

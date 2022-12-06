@@ -11,6 +11,9 @@
  *********************************************************
  *********************************************************/
 import fetch from 'node-fetch';
+<% if (scats) {%>
+import {option, Option, Collection, Try, TryLike, none} from 'scats';
+<% } %>
 
 export interface RequestOptions {
     headers: Record<string, string>;
@@ -43,3 +46,15 @@ const defaultRequestOptions = () => swaggerCodeGenParams.requestOptions;
 <% methods.foreach(method => { %>
 <%- include('method.ejs', {method: method}); %>
 <% }); %>
+
+
+<% if (scats) {%>
+<% schemas.foreach(schema => { %>
+<%- include('scats-schema.ejs', {schema: schema}); %>
+<% }); %>
+
+<%- include('scats-method.ejs'); %>
+
+<% } %>
+
+
