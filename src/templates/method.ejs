@@ -71,7 +71,9 @@ export async function <%= method.endpointName %>(
         const postprocessed = option(requestOptions.postProcessResponse)
             .map(cb => cb(preprocessed, resp))
             .getOrElseValue(resp);
-        const json = resp.size > 0 ? await postprocessed.json() : null;
+        const json = option(resp.headers.get('content-length'))
+            .map(x => parseInt(x))
+            .getOrElseValue(0) > 0 ? await postprocessed.json() : null;
         return json as <%- method.response.responseType %>;
     } else {
         throw resp;
