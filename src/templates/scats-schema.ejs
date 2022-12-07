@@ -36,6 +36,14 @@ export class <%= schema.name %>Dto {
         <%_ });  -%>
         );
     }
+
+    get toJson() {
+        return {
+            <%_ schema.properties.foreach(p => { -%>
+            <%= p.name %>: this.<%= p.name %>,
+            <%_ });  -%>
+        };
+    }
 }
 
 <%_ } -%>
