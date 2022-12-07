@@ -37,11 +37,25 @@ export class <%= schema.name %>Dto {
         );
     }
 
-    get toJson() {
+    get toJson(): <%= schema.name %> {
         return {
-            <%_ schema.properties.foreach(p => { -%>
+            <%_ schema.properties.foreach(p => { _%>
+            <%_ if (p.referencesObject) { _%>
+            <%_ if (p.required || !p.nullable) { _%>
+            <%= p.name %>: this.<%= p.name %>.toJson,
+            <%_ } else { _%>
+            <%= p.name %>: this.<%= p.name %>.map(_ => _.toJson).orUndefined,
+            <%_ } _%>
+            <%_ } else if (p.isArray) { _%>
+            <%= p.name %>: this.<%= p.name %>
+                <% if (p.itemReferencesObject) { _%>.map(_ => _.toJson)<%_ } _%>
+                .toArray,
+            <%_ } else if (p.required || !p.nullable) { _%>
             <%= p.name %>: this.<%= p.name %>,
-            <%_ });  -%>
+            <%_ } else { _%>
+            <%= p.name %>: this.<%= p.name %>.orUndefined,
+            <%_ } _%>
+            <%_ }); _%>
         };
     }
 }
