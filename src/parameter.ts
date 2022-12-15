@@ -27,7 +27,16 @@ export class Parameter {
         if (schema instanceof SchemaObject) {
             jsType = schema.type;
         } else if (schema instanceof SchemaEnum) {
-            jsType = schema.name;
+            if (schemas.containsKey(schema.name)) {
+                jsType = schema.name;
+            } else if (schema.type === 'string') {
+                jsType = `${schema.values.map(x => `'${x}'`).mkString(' | ')}`;
+            } else if (schema.type === 'integer') {
+                jsType = `${schema.values.map(x => `${x}`).mkString(' | ')}`;
+            } else {
+                jsType = schema.type;
+            }
+            jsType = schemas.containsKey(schema.name) ? schema.name : `${schema.values.map(x => `'${x}'`).mkString(' | ')}`;
         } else if (schema instanceof Property) {
             jsType = schema.jsType;
         } else {

@@ -1,23 +1,25 @@
 /**
  * <%= method.method.toUpperCase() %> <%= method.path %>
-<% if (method.description) { -%>
- * <%= method.description %>
+<% if (method.summary) { -%>
+ * @summary <%= method.summary %>
 <% } -%>
-<% if (method.parameters.size > 2) { -%>
+<% if (method.description) { -%>
+ * @description <%= method.description %>
+<% } -%>
+<% if (method.wrapParamsInObject) { -%>
  * @param {Object} params
 <% } -%>
 <% method.parameters.foreach(p => { -%>
- * @param {<%= p.jsType %>} <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
+ * @param {<%= p.jsType %>} <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
 <% }); -%>
 <%_ if (method.body.nonEmpty) { -%>
- * @param {<%= method.body.get.type %>} body <%= method.bodyDescription.getOrElseValue('') %>
+ * @param {<%= method.body.get.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
- * @summary <%= method.summary %>
  * @return {<%= method.response.responseType %>} <%= method.response.description %>
  */
 export async function <%= method.endpointName %>(
-    <%_ if (method.parameters.size <= 2) { -%>
+    <%_ if (!method.wrapParamsInObject) { -%>
     <%_ method.parameters.foreach(p => { -%>
     <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %>,
     <%_ }) -%>
@@ -29,7 +31,7 @@ export async function <%= method.endpointName %>(
     },
     <%_ } -%>
     <%_ if (method.body.nonEmpty) { -%>
-    body: <%= method.body.get.type %>,
+    body: <%- method.body.get.jsType %>,
     <%_ } -%>
     requestOptions: RequestOptions = defaultRequestOptions()
 ): Promise<<%- method.response.responseType %>> {
@@ -38,17 +40,17 @@ export async function <%= method.endpointName %>(
     const queryParams = [];
     <%_ method.parameters.filter(x => x.in === 'query' && x.required).foreach(p => { -%>
     <%_ if (p.jsType === 'string') { -%>
-    queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>)}`);
+    queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
     <%_ } else { -%>
-    queryParams.push(`<%= p.name %>=${<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>}`);
+    queryParams.push(`<%= p.name %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
     <%_ }  -%>
     <%_ }) -%>
     <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
-    if (!!<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>) {
+    if (!!<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>) {
         <%_ if (p.jsType === 'string') { -%>
-        queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>)}`);
+        queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
         <%_ } else { -%>
-        queryParams.push(`<%= p.name %>=${<%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>}`);
+        queryParams.push(`<%= p.name %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
         <%_ }  -%>
     }
     <%_ }) -%>
@@ -63,20 +65,20 @@ export async function <%= method.endpointName %>(
             ...option(requestOptions.headers).getOrElseValue({}),
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
             <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
-            <%= p.name %>: <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %>
+            <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>
             <%_ }) -%>
             <%_ }  -%>
         }
     });
-    const preprocessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
-    const resp = await fetch(preprocessed);
+    const preProcessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
+    const resp = await fetch(preProcessed);
     if (resp.ok) {
-        const postprocessed = option(requestOptions.postProcessResponse)
-            .map(cb => cb(preprocessed, resp))
+        const postProcessed = option(requestOptions.postProcessResponse)
+            .map(cb => cb(preProcessed, resp))
             .getOrElseValue(resp);
         const json = option(resp.headers.get('content-length'))
             .map(x => parseInt(x))
-            .getOrElseValue(0) > 0 ? await postprocessed.json() : null;
+            .getOrElseValue(0) > 0 ? await postProcessed.json() : null;
         return json as <%- method.response.responseType %>;
     } else {
         throw resp;

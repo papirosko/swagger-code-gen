@@ -46,6 +46,7 @@ export interface OpenApiMethod {
     tags?: string[];
     summary?: string;
     description?: string;
+    operationId?: string;
     parameters?: OpenApiParam[];
     requestBody?: {
         description?: string;

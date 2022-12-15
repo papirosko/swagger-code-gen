@@ -29,6 +29,8 @@ export class Method {
     private readonly body: Option<Schema>;
     private readonly bodyDescription: Option<string>;
 
+    private readonly operationId: Option<string>;
+    readonly wrapParamsInObject: boolean;
 
     constructor(readonly path: string, readonly method: string,
                 def: OpenApiMethod,
@@ -37,7 +39,7 @@ export class Method {
         this.tags = option(def.tags).getOrElseValue([]);
         this.summary = def.summary;
         this.description = def.description;
-
+        this.operationId = option(def.operationId);
 
         const parameters = Collection.from(option(def.parameters).getOrElseValue([]))
             .map(p => Parameter.fromDefinition(p, schemasTypes, options))
@@ -105,14 +107,17 @@ export class Method {
                 responseType: 'any'
             }));
 
+
+        this.wrapParamsInObject = this.parameters.size > 2 || (this.body.isDefined) && this.parameters.nonEmpty;
+
     }
 
     get endpointName() {
-        return `${this.method}${Method.pathToName(this.path)}`;
+        return this.operationId.getOrElse(() => `${this.method}${Method.pathToName(this.path)}`);
     }
 
     get pathWithSubstitutions(): string {
-        const paramPrefix = `${this.parameters.size > 2 ? 'params.' : ''}`;
+        const paramPrefix = `${this.wrapParamsInObject ? 'params.' : ''}`;
         return this.path.replace(/\{(\w+?)\}/g, (matched, group) => {
             const remappedName = this.parameters.find(p => p.name === group && p.in === 'path')
                 .map(_ => _.uniqueName)
