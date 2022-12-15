@@ -27,6 +27,7 @@ export class Method {
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
     private readonly body: Option<Schema>;
+    private readonly bodyDescription: Option<string>;
 
 
     constructor(readonly path: string, readonly method: string,
@@ -69,6 +70,8 @@ export class Method {
                     .orElseValue(mimeTypes.headOption)
                     .map(mt => SchemaFactory.build('body', body[mt].schema, schemasTypes, options));
             });
+
+        this.bodyDescription = option(def.requestBody).flatMap(body => option(body.description));
 
 
         const statusCodes = Collection.from(Object.keys(def.responses))

@@ -10,7 +10,7 @@
  * @param {<%= p.jsType %>} <%= method.parameters.size > 2 ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
 <% }); -%>
 <%_ if (method.body.nonEmpty) { -%>
- * @param {<%= method.body.get.type %>} body
+ * @param {<%= method.body.get.type %>} body <%= method.bodyDescription.getOrElseValue('') %>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
  * @summary <%= method.summary %>
