@@ -39,7 +39,7 @@ export class Parameter {
             }
             defaultValue = schema.defaultValue.map(x => {
                 if (schema.type === 'string') {
-                    return `'${x}'`
+                    return `'${x}'`;
                 } else {
                     return x;
                 }
