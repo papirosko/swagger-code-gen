@@ -45,7 +45,8 @@ export interface OpenApiResponse {
 export interface OpenApiMethod {
     tags?: string[];
     summary?: string;
-    parameters: OpenApiParam[];
+    description?: string;
+    parameters?: OpenApiParam[];
     requestBody?: {
         content?: {
             [mimeType: string]: {

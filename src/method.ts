@@ -23,6 +23,7 @@ export class Method {
 
     readonly tags: string[];
     readonly summary?: string;
+    readonly description?: string;
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
     private readonly body: Option<Schema>;
@@ -34,9 +35,10 @@ export class Method {
                 options: GenerationOptions) {
         this.tags = option(def.tags).getOrElseValue([]);
         this.summary = def.summary;
+        this.description = def.description;
 
 
-        const parameters = Collection.from(def.parameters)
+        const parameters = Collection.from(option(def.parameters).getOrElseValue([]))
             .map(p => Parameter.fromDefinition(p, schemasTypes, options))
             .sort((a, b) => {
                 const r1 = a.required ? 1 : 0;
@@ -76,7 +78,9 @@ export class Method {
             .filter(code => code / 100 === 2)
             .minByOption(identity);
 
-        const respDef = successCode.map(_ => def.responses[_]).getOrElseValue(def.responses[statusCodes.head]);
+        const respDef = successCode.map(_ => def.responses[_])
+            .orElse(() => option(def.responses['default']))
+            .getOrElseValue(def.responses[statusCodes.head]);
 
         const mimeTypes = option(respDef.content)
             .map(content => Collection.from(Object.keys(content)).toMap(mimeType =>

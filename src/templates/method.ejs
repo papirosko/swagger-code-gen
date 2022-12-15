@@ -1,5 +1,8 @@
 /**
  * <%= method.method.toUpperCase() %> <%= method.path %>
+<% if (method.description) { -%>
+ * <%= method.description %>
+<% } -%>
 <% if (method.parameters.size > 2) { -%>
  * @param {Object} params
 <% } -%>

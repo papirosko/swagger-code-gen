@@ -11,8 +11,9 @@
  *********************************************************
  *********************************************************/
 import fetch, {Request, Response} from 'node-fetch';
+import {option, Option} from 'scats';
 <% if (scats) {%>
-import {option, Option, Collection, Try, TryLike, none} from 'scats';
+import {Collection, Try, TryLike, none} from 'scats';
 <% } %>
 
 export interface RequestOptions {
