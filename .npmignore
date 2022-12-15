@@ -8,3 +8,4 @@ jest.config.ts
 package-lock.json
 tsconfig.json
 tsconfig-eslint.json
+/tmp
