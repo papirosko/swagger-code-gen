@@ -1,6 +1,6 @@
 import {OpenApiParam} from './openapi.js';
 import {GenerationOptions, SchemaEnum, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
-import {Collection, HashMap, identity, Option, option} from 'scats';
+import {Collection, HashMap, identity, none, Option, option} from 'scats';
 import {Method} from './method.js';
 import {Property} from './property.js';
 
@@ -13,6 +13,7 @@ export class Parameter {
                 inValue: string,
                 readonly jsType: string,
                 readonly required: boolean,
+                readonly defaultValue: Option<string | number>,
                 readonly description: Option<string>) {
         this.in = inValue;
     }
@@ -21,7 +22,7 @@ export class Parameter {
         const name = Parameter.toJSName(def.name);
         const inValue = def.in;
         const desc = option(def.description);
-        const required = option(def.required).exists(identity);
+        let defaultValue: Option<string | number> = none;
         const schema = SchemaFactory.build(def.name, def.schema, schemas, options);
         let jsType: string;
         if (schema instanceof SchemaObject) {
@@ -36,13 +37,21 @@ export class Parameter {
             } else {
                 jsType = schema.type;
             }
-            jsType = schemas.containsKey(schema.name) ? schema.name : `${schema.values.map(x => `'${x}'`).mkString(' | ')}`;
+            defaultValue = schema.defaultValue.map(x => {
+                if (schema.type === 'string') {
+                    return `'${x}'`
+                } else {
+                    return x;
+                }
+
+            });
         } else if (schema instanceof Property) {
             jsType = schema.jsType;
         } else {
             throw new Error('Unknown schema type');
         }
-        return new Parameter(name, name, inValue, jsType, required, desc);
+        const required = option(def.required).exists(identity) || defaultValue.nonEmpty;
+        return new Parameter(name, name, inValue, jsType, required, defaultValue, desc);
     }
 
     static toJSName(path: string): string {
@@ -59,6 +68,7 @@ export class Parameter {
             option(p.in).getOrElseValue(this.in),
             option(p.jsType).getOrElseValue(this.jsType),
             option(p.required).getOrElseValue(this.required),
+            option(p.defaultValue).getOrElseValue(this.defaultValue),
             option(p.description).getOrElseValue(this.description),
         );
     }

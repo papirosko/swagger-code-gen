@@ -21,7 +21,7 @@
 export async function <%= method.endpointName %>(
     <%_ if (!method.wrapParamsInObject) { -%>
     <%_ method.parameters.foreach(p => { -%>
-    <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %>,
+    <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %><%- p.defaultValue.map(x => ` = ${x}`).getOrElseValue('') %>,
     <%_ }) -%>
     <%_ } else { -%>
     params: {

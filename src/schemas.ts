@@ -1,5 +1,5 @@
 import {OpenApiSchema} from './openapi.js';
-import {Collection, HashMap, Nil, option} from 'scats';
+import {Collection, HashMap, Nil, Option, option} from 'scats';
 import {Property} from './property.js';
 
 export type SchemaType = 'object' | 'enum' | 'property';
@@ -57,11 +57,18 @@ export class SchemaEnum implements Schema {
     protected constructor(readonly name: string,
                           readonly title: string,
                           readonly type: string,
+                          readonly defaultValue: Option<string | number>,
                           readonly values: Collection<string>) {
     }
 
     static fromDefinition(name: string, def: OpenApiSchema) {
-        return new SchemaEnum(name, def.title, def.type, option(def.enum).map(Collection.from).getOrElseValue(Nil));
+        return new SchemaEnum(
+            name,
+            def.title,
+            def.type,
+            option(def.default),
+            option(def.enum).map(Collection.from).getOrElseValue(Nil)
+        );
     }
 }
 

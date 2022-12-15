@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/papirosko/swagger-code-gen#readme",
   "scripts": {
-    "test:petstore": "mkdir -p tmp && ts-node-esm ./src/cli.mjs --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
+    "test:petstore": "mkdir -p tmp && ts-node-esm ./src/cli.mjs --enableScats --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
