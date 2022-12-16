@@ -148,19 +148,7 @@ export async function findPetsByStatus(
       ...option(requestOptions.headers).getOrElseValue({}),
     }
   });
-  const preProcessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
-  const resp = await fetch(preProcessed);
-  if (resp.ok) {
-    const postProcessed = option(requestOptions.postProcessResponse)
-            .map(cb => cb(preProcessed, resp))
-            .getOrElseValue(resp);
-    const json = option(resp.headers.get('content-length'))
-            .map(x => parseInt(x))
-            .getOrElseValue(0) > 0 ? await postProcessed.json() : null;
-    return json as ReadonlyArray<Pet>;
-  } else {
-    throw resp;
-  }
+  return requestImpl<Pet>(request, requestOptions);
 }
 
 
