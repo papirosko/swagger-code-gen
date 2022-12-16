@@ -1,5 +1,5 @@
 import {OpenApiMethod} from './openapi.js';
-import {Collection, HashMap, identity, Option, option} from 'scats';
+import {Collection, HashMap, HashSet, identity, Option, option} from 'scats';
 import {Property} from './property.js';
 import {Parameter} from './parameter.js';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
@@ -16,18 +16,19 @@ const sortByIn = HashMap.of(
     ['path', 0],
     ['query', 1],
     ['header', 2],
-    ['body', 3],
+    ['cookie', 3],
+    ['body', 4],
 );
 
 export class Method {
 
-    readonly tags: string[];
+    readonly tags: HashSet<string>;
     readonly summary?: string;
     readonly description?: string;
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
     private readonly body: Option<Schema>;
-    private readonly bodyDescription: Option<string>;
+    readonly bodyDescription: Option<string>;
 
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
@@ -36,7 +37,7 @@ export class Method {
                 def: OpenApiMethod,
                 schemasTypes: HashMap<string, SchemaType>,
                 options: GenerationOptions) {
-        this.tags = option(def.tags).getOrElseValue([]);
+        this.tags = HashSet.from(option(def.tags).getOrElseValue([]));
         this.summary = def.summary;
         this.description = def.description;
         this.operationId = option(def.operationId);

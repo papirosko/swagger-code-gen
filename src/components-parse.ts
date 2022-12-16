@@ -28,5 +28,9 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
         return Collection.from(Object.keys(methods)).map(methodName =>
             new Method(path, methodName, methods[methodName], schemasTypes, options)
         );
+    }).filter(m => {
+        const included = options.includeTags.isEmpty || options.includeTags.intersect(m.tags).nonEmpty;
+        const excluded = options.excludeTags.nonEmpty && options.excludeTags.intersect(m.tags).nonEmpty;
+        return included && !excluded;
     });
 }

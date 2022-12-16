@@ -1,5 +1,5 @@
 import {OpenApiSchema} from './openapi.js';
-import {Collection, HashMap, Nil, Option, option} from 'scats';
+import {Collection, HashMap, HashSet, Nil, Option, option} from 'scats';
 import {Property} from './property.js';
 
 export type SchemaType = 'object' | 'enum' | 'property';
@@ -10,6 +10,8 @@ export interface Schema {
 
 export interface GenerationOptions {
     referencedObjectsNullableByDefault: boolean;
+    includeTags: HashSet<string>;
+    excludeTags: HashSet<string>;
 }
 
 export class SchemaFactory {

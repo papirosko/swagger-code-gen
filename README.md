@@ -10,10 +10,17 @@ npm install -D @penkov/swagger-code-gen
 Usage:
 ```shell
 generate-client --url <URI> output_filename.ts
+generate-client --url <URI> --includeTags tag1 tag2 -- output_filename.ts
 ```
 
 Cli parameters:
 * `--url <URI>` - the swagger url
+* `--includeTags <tags...>` - Space-separated list of tags of paths to be included. Path is included if it contains any of specified tag
+  Path is included if exclusion list is empty or path contains any of the tags from inclusion list.
+  If the tag is both in inclusion and exclusion lists, it gets excluded.
+* `--excludeTags <tags...>` - Space-separated list of tags of paths to be excluded. 
+  Path is excluded if exclusion list is non-empty and path contains any of the tags from exclusion list.
+  If the tag is both in inclusion and exclusion lists, it gets excluded.
 * `--referencedObjectsNullableByDefault` - then specified, the generated code will assume that
   any object's field, that references another object, can be null, unless it is explicitly specified to be not nullable
   (which is default in .net world: asp generates wrong spec)
@@ -109,19 +116,7 @@ export async function updatePet(
       ...option(requestOptions.headers).getOrElseValue({}),
     }
   });
-  const preProcessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
-  const resp = await fetch(preProcessed);
-  if (resp.ok) {
-    const postProcessed = option(requestOptions.postProcessResponse)
-            .map(cb => cb(preProcessed, resp))
-            .getOrElseValue(resp);
-    const json = option(resp.headers.get('content-length'))
-            .map(x => parseInt(x))
-            .getOrElseValue(0) > 0 ? await postProcessed.json() : null;
-    return json as Pet;
-  } else {
-    throw resp;
-  }
+  return requestImpl<Pet>(request, requestOptions);
 }
 
 
