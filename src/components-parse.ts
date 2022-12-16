@@ -10,7 +10,9 @@ export function resolveSchemasTypes(json: any): HashMap<string, SchemaType> {
     return schemasNames.toMap(name => [name, SchemaFactory.resolveSchemaType(jsonSchemas[name])]);
 }
 
-export function resolveSchemas(json: any, schemasTypes: HashMap<string, SchemaType>, options: GenerationOptions): HashMap<string, Schema> {
+export function resolveSchemas(json: any,
+                               schemasTypes: HashMap<string, SchemaType>,
+                               options: GenerationOptions): HashMap<string, Schema> {
 
     const jsonSchemas = json.components.schemas;
     const schemasNames = Collection.from(Object.keys(jsonSchemas));
