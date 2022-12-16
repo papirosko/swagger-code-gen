@@ -11,9 +11,8 @@
  *********************************************************
  *********************************************************/
 import fetch, {Request, Response} from 'node-fetch';
-import {option, Option} from 'scats';
 <% if (scats) {%>
-import {Collection, Try, TryLike, none} from 'scats';
+import {option, Option, Collection, Try, TryLike, none} from 'scats';
 <% } %>
 
 export interface RequestOptions {
@@ -33,6 +32,26 @@ export const defaultReqOpts: RequestOptions = {
 };
 
 const defaultRequestOptions = () => defaultReqOpts;
+
+
+async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
+    const preProcessed = requestOptions.preProcessRequest ? requestOptions.preProcessRequest(request) : request;
+    const resp = await fetch(preProcessed);
+    if (resp.ok) {
+        const postProcessed = requestOptions.postProcessResponse ? requestOptions.postProcessResponse(preProcessed, resp) : resp;
+        let json: any = null;
+        if (postProcessed.headers.has('content-length')) {
+            const ct = parseInt(postProcessed.headers.get('content-length'));
+            if (ct > 0) {
+                json = await postProcessed.json()
+            }
+        }
+        return json as T;
+    } else {
+        throw resp;
+    }
+
+}
 
 <% schemas.foreach(schema => { %>
 <%- include('schema.ejs', {schema: schema}); %>

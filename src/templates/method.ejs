@@ -62,7 +62,7 @@ export async function <%= method.endpointName %>(
         method: '<%= method.method %>',
         body: <%= method.body.map(() => 'JSON.stringify(body)').getOrElseValue('undefined') %>,
         headers: {
-            ...option(requestOptions.headers).getOrElseValue({}),
+            ...requestOptions.headers || {},
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
             <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
             <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>
@@ -70,17 +70,5 @@ export async function <%= method.endpointName %>(
             <%_ }  -%>
         }
     });
-    const preProcessed = option(requestOptions.preProcessRequest).map(cb => cb(request)).getOrElseValue(request);
-    const resp = await fetch(preProcessed);
-    if (resp.ok) {
-        const postProcessed = option(requestOptions.postProcessResponse)
-            .map(cb => cb(preProcessed, resp))
-            .getOrElseValue(resp);
-        const json = option(resp.headers.get('content-length'))
-            .map(x => parseInt(x))
-            .getOrElseValue(0) > 0 ? await postProcessed.json() : null;
-        return json as <%- method.response.responseType %>;
-    } else {
-        throw resp;
-    }
+    return requestImpl<<%- method.response.responseType %>>(request, requestOptions);
 }
