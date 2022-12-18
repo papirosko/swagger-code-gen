@@ -18,7 +18,7 @@ export class ApiClient {
         },
         <%_ } -%>
         <%_ method.body.foreach(body => { -%>
-        body: <%- body.jsType %>,
+        body: <%- body.scatsWrapperType %>,
         <%_ }); -%>
         requestOptions: RequestOptions = this.requestOptions
     ): Promise<TryLike<<%- method.response.asProperty.scatsWrapperType %>>> {
@@ -31,9 +31,23 @@ export class ApiClient {
                     <%_ } else { -%>
                     params,
                     <%_ } -%>
-                    <%_ if (method.body.nonEmpty) { -%>
+                    <%_ method.body.foreach(body => { -%>
+                    <%_ if (body.schemaType === 'object') { _%>
+                    body.toJson,
+                    <%_ } else if (body.schemaType === 'property') { _%>
+                    <%_ if (body.isArray && body.itemReferencesObject) { _%>
+                    body.map(_ => _.toJson).toArray,
+                    <%_ } else if (body.isArray && !body.itemReferencesObject) { -%>
+                    body.toArray,
+                    <%_ } else if (body.referencesObject) { -%>
+                    body.toJson,
+                    <%_ } else { -%>
                     body,
                     <%_ } -%>
+                    <%_ } else { -%>
+                    body,
+                    <%_ } -%>
+                    <%_ }); -%>
                     requestOptions
                 )
             ))
