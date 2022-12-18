@@ -158,48 +158,53 @@ export async function findPetsByStatus(
 
 // scats wrappers
 
-export class OrderDto {
+
+export class PetDto {
 
   constructor(
           readonly id: number,
-          readonly petId: number,
-          readonly quantity: number,
-          readonly shipDate: string,
+          readonly name: string,
+          readonly category: CategoryDto,
+          readonly photoUrls: Collection<string>,
+          readonly tags: Collection<TagDto>,
           readonly status: string,
-          readonly complete: boolean,
   ) {}
 
 
-  static fromJson(json: Order): OrderDto {
-    return new OrderDto(
+  static fromJson(json: Pet): PetDto {
+    return new PetDto(
             json.id,
-            json.petId,
-            json.quantity,
-            json.shipDate,
+            json.name,
+            CategoryDto.fromJson(json.category),
+            Collection.from(option(json.photoUrls).getOrElseValue([]))
+            ,
+            Collection.from(option(json.tags).getOrElseValue([]))
+                    .map(i => TagDto.fromJson(i)),
             json.status,
-            json.complete,
     );
   }
 
-  copy(fields: Partial<OrderDto>): OrderDto {
-    return new OrderDto(
+  copy(fields: Partial<PetDto>): PetDto {
+    return new PetDto(
             option(fields.id).getOrElseValue(this.id),
-            option(fields.petId).getOrElseValue(this.petId),
-            option(fields.quantity).getOrElseValue(this.quantity),
-            option(fields.shipDate).getOrElseValue(this.shipDate),
+            option(fields.name).getOrElseValue(this.name),
+            option(fields.category).getOrElseValue(this.category),
+            option(fields.photoUrls).getOrElseValue(this.photoUrls),
+            option(fields.tags).getOrElseValue(this.tags),
             option(fields.status).getOrElseValue(this.status),
-            option(fields.complete).getOrElseValue(this.complete),
     );
   }
 
-  get toJson(): Order {
+  get toJson(): Pet {
     return {
       id: this.id,
-      petId: this.petId,
-      quantity: this.quantity,
-      shipDate: this.shipDate,
+      name: this.name,
+      category: this.category.toJson,
+      photoUrls: this.photoUrls
+              .toArray,
+      tags: this.tags
+              .map(_ => _.toJson)                .toArray,
       status: this.status,
-      complete: this.complete,
     };
   }
 }
@@ -210,14 +215,15 @@ export class ApiClient {
   constructor(private readonly requestOptions: RequestOptions = defaultRequestOptions()) {
   }
 
+  // ... some methods skipped
 
   async updatePet(
-          body: Pet,
+          body: PetDto,
           requestOptions: RequestOptions = this.requestOptions
   ): Promise<TryLike<PetDto>> {
     return (await Try.promise(() =>
             updatePet(
-                    body,
+                    body.toJson,
                     requestOptions
             )
     ))
@@ -225,17 +231,18 @@ export class ApiClient {
             ;
   }
 
-  async addPet(
-          body: Pet,
+  async findPetsByStatus(
+          status: 'available' | 'pending' | 'sold',
           requestOptions: RequestOptions = this.requestOptions
-  ): Promise<TryLike<PetDto>> {
+  ): Promise<TryLike<Collection<PetDto>>> {
     return (await Try.promise(() =>
-            addPet(
-                    body,
+            findPetsByStatus(
+                    status,
                     requestOptions
             )
     ))
-            .map(res => PetDto.fromJson(res))
+            .map(res => Collection.from(option(res).getOrElseValue([])))
+            .map(items => items.map(i => PetDto.fromJson(i)))
             ;
   }
 
