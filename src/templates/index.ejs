@@ -23,7 +23,7 @@ export interface RequestOptions {
 }
 
 
-export const defaultReqOpts: RequestOptions = {
+export const defaultRequestOptions: RequestOptions = {
     apiPrefix: '',
     headers: {
         'Accept': 'application/json',
@@ -31,7 +31,7 @@ export const defaultReqOpts: RequestOptions = {
     }
 };
 
-const defaultRequestOptions = () => defaultReqOpts;
+const defReqOpts = () => defaultRequestOptions;
 
 
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
