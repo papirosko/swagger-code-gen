@@ -71,7 +71,20 @@ export class Method {
                 return mimeTypes
                     .find(_ => _ === 'application/json')
                     .orElseValue(mimeTypes.headOption)
-                    .map(mt => SchemaFactory.build('body', body[mt].schema, schemasTypes, options));
+                    .map(mt => {
+                        const bodySchemaDef = body[mt].schema;
+                        const res = SchemaFactory.build('body', bodySchemaDef, schemasTypes, options);
+                        if (res.schemaType === 'property') {
+                            // '--referencedObjectsNullableByDefault' flag makes body to be nullable by default, which
+                            // may be wrong. We make nullable value true only if it is explicitly requested.
+                            const bProperty = res as Property;
+                            return bProperty.copy({
+                                nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable
+                            });
+                        } else {
+                            return res;
+                        }
+                    });
             });
 
         this.bodyDescription = option(def.requestBody).flatMap(body => option(body.description));
