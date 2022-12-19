@@ -106,7 +106,7 @@ export interface ApiResponse {
  */
 export async function updatePet(
         body: Pet,
-        requestOptions: RequestOptions = defaultRequestOptions()
+        requestOptions: RequestOptions = defReqOpts()
 ): Promise<Pet> {
   let query = '';
   const request = new Request(`${requestOptions.apiPrefix}/pet${query}`, {
@@ -133,7 +133,7 @@ export async function updatePet(
  */
 export async function findPetsByStatus(
         status: 'available' | 'pending' | 'sold' = 'available',
-        requestOptions: RequestOptions = defaultRequestOptions()
+        requestOptions: RequestOptions = defReqOpts()
 ): Promise<ReadonlyArray<Pet>> {
   let query = '';
   const queryParams = [];
@@ -212,7 +212,7 @@ export class PetDto {
 
 export class ApiClient {
 
-  constructor(private readonly requestOptions: RequestOptions = defaultRequestOptions()) {
+  constructor(private readonly requestOptions: RequestOptions = defReqOpts()) {
   }
 
   // ... some methods skipped
