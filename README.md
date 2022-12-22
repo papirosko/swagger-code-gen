@@ -39,6 +39,27 @@ Will generate:
 ```typescript
 // header skipped
 
+async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
+  const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
+  const resp = await fetch(preProcessed);
+  const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
+  if (postProcessed.ok) {
+    let json: any = null;
+    if (postProcessed.headers.has('content-length')) {
+      const ct = parseInt(postProcessed.headers.get('content-length'));
+      if (ct > 0) {
+        json = await postProcessed.json()
+      }
+    }
+    return json as T;
+  } else {
+    throw postProcessed;
+  }
+}
+
+
+
+
 export interface Customer {
   readonly id: number;
   readonly username: string;
