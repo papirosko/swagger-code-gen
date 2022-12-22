@@ -18,8 +18,8 @@ import {option, Option, Collection, Try, TryLike, none} from 'scats';
 export interface RequestOptions {
     apiPrefix?: string;
     headers?: Record<string, string>;
-    preProcessRequest?: (request: Request) => Request;
-    postProcessResponse?: (request: Request, response: Response) => Response;
+    preProcessRequest?: (request: Request) => Request | Promise<Request>;
+    postProcessResponse?: (request: Request, response: Response) => Response | Promise<Response>;
 }
 
 
@@ -33,11 +33,10 @@ export const defaultRequestOptions: RequestOptions = {
 
 const defReqOpts = () => defaultRequestOptions;
 
-
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
-    const preProcessed = requestOptions.preProcessRequest ? requestOptions.preProcessRequest(request) : request;
+    const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
     const resp = await fetch(preProcessed);
-    const postProcessed = requestOptions.postProcessResponse ? requestOptions.postProcessResponse(preProcessed, resp) : resp;
+    const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
     if (postProcessed.ok) {
         let json: any = null;
         if (postProcessed.headers.has('content-length')) {
@@ -50,7 +49,6 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
     } else {
         throw postProcessed;
     }
-
 }
 
 <% schemas.foreach(schema => { %>
