@@ -37,8 +37,8 @@ const defReqOpts = () => defaultRequestOptions;
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? requestOptions.preProcessRequest(request) : request;
     const resp = await fetch(preProcessed);
-    if (resp.ok) {
-        const postProcessed = requestOptions.postProcessResponse ? requestOptions.postProcessResponse(preProcessed, resp) : resp;
+    const postProcessed = requestOptions.postProcessResponse ? requestOptions.postProcessResponse(preProcessed, resp) : resp;
+    if (postProcessed.ok) {
         let json: any = null;
         if (postProcessed.headers.has('content-length')) {
             const ct = parseInt(postProcessed.headers.get('content-length'));
@@ -48,7 +48,7 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
         }
         return json as T;
     } else {
-        throw resp;
+        throw postProcessed;
     }
 
 }
