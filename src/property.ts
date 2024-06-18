@@ -86,8 +86,6 @@ export class Property implements Schema {
             )
             .getOrElseValue('any');
 
-        console.log(`${name}: ${type}`);
-
         return new Property(name, type, description, null, nullable, required, items, referencesObject, itemReferencesObject);
     }
 
