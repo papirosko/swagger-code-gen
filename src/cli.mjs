@@ -15,17 +15,19 @@ program
     .option('--includeTags <tags...>', 'Space-separated list of tags of paths to be included. Path is included if it contains any of specified tag')
     .option('--excludeTags <tags...>', 'Space-separated list of tags of paths to be excluded. Path is excluded if it contains any of specified tag')
     .option('--enableScats', 'Generate scats', false)
+    .option('--targetNode', 'Add imports for node-fetch into generated code', false)
     .argument('outputFile', 'File with generated code')
     .parse();
 
 const url = program.opts().url;
 const referencedObjectsNullableByDefault = program.opts().referencedObjectsNullableByDefault;
 const enableScats = program.opts().enableScats;
+const targetNode = program.opts().targetNode;
 const outputFile = program.args[0];
 const includeTags = HashSet.from(program.opts().includeTags || []);
 const excludeTags = HashSet.from(program.opts().excludeTags || []);
 
-main(url, enableScats, outputFile, {
+main(url, enableScats, targetNode, outputFile, {
     referencedObjectsNullableByDefault: referencedObjectsNullableByDefault,
     includeTags: includeTags,
     excludeTags: excludeTags

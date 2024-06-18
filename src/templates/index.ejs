@@ -10,7 +10,9 @@
  *********************************************************
  *********************************************************
  *********************************************************/
+<% if (targetNode) {%>
 import fetch, {Request, Response} from 'node-fetch';
+<% } %>
 <% if (scats) {%>
 import {option, Option, Collection, Try, TryLike, none} from 'scats';
 <% } %>

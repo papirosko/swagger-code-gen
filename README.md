@@ -26,6 +26,7 @@ Cli parameters:
   (which is default in .net world: asp generates wrong spec)
 * `--enableScats` - generate additional wrappers in [scats](https://www.npmjs.com/package/scats) 
   style for all objects and create a service with methods for each endpoint.
+* `--targetNode` - adds imports for `node-fetch` package in generated code.
 
 
 

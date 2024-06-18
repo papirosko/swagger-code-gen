@@ -10,9 +10,9 @@ import {GenerationOptions} from './schemas';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export async function main(url: string, enableScats: boolean, outputFile: string, options: GenerationOptions) {
+export async function main(url: string, enableScats: boolean, targetNode: boolean, outputFile: string, options: GenerationOptions) {
 
-    const { configure, getLogger } = log4js;
+    const {configure, getLogger} = log4js;
 
     configure(`${__dirname}/../config/log4js.json`);
     const logger = getLogger('Generator');
@@ -29,7 +29,7 @@ export async function main(url: string, enableScats: boolean, outputFile: string
             const paths = resolvePaths(json, schemasTypes, options);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
-            await renderer.renderToFile(schemas.values, paths, enableScats, outputFile);
+            await renderer.renderToFile(schemas.values, paths, enableScats, targetNode, outputFile);
             logger.debug(`Wrote client to ${outputFile}`);
 
         });

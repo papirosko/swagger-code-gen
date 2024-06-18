@@ -62,7 +62,7 @@ export class Property implements Schema {
             )
             .getOrElseValue(definition.type);
 
-        const nullable = option(definition.nullable).contains(true) || !option(definition.required).contains(true) ||
+        const nullable = option(definition.nullable).contains(true) ||
             (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false));
 
         const description = option(definition.description);
