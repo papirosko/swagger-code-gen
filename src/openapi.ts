@@ -11,6 +11,7 @@ export interface OpenApiProperty {
     enum?: string[];
     items?: OpenApiProperty;
     oneOf?: OpenApiProperty[];
+    allOf?: OpenApiProperty[];
 }
 
 

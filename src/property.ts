@@ -48,13 +48,26 @@ export class Property implements Schema {
 
         const type = option(definition.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
+            .orElse(() =>
+                option(definition.allOf)
+                    .map(x => Collection.from(x))
+                    .filter(x => x.nonEmpty)
+                    .map(x =>
+                        x.flatMapOption(oneOfItem =>
+                            option(oneOfItem.$ref)
+                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
+                                .orElseValue(option(oneOfItem.type))
+                        ).mkString(' & ')
+                    )
+            )
             .getOrElseValue(definition.type);
 
-        const nullable = option(definition.nullable).contains(true) ||
+        const nullable = option(definition.nullable).contains(true) || !option(definition.required).contains(true) ||
             (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false));
 
         const description = option(definition.description);
-        const required = option(definition.required).contains(true);
+        // fields are not required by default
+        const required = option(definition.required).contains(false);
 
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
@@ -72,6 +85,8 @@ export class Property implements Schema {
                     )
             )
             .getOrElseValue('any');
+
+        console.log(`${name}: ${type}`);
 
         return new Property(name, type, description, null, nullable, required, items, referencesObject, itemReferencesObject);
     }
