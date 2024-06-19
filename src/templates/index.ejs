@@ -46,6 +46,8 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
             if (ct > 0) {
                 json = await postProcessed.json()
             }
+        } else {
+            json = await postProcessed.json()
         }
         return json as T;
     } else {
