@@ -12,7 +12,7 @@ export class <%= schema.name %>Dto {
         return new <%= schema.name %>Dto(
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
-            <%_ if (p.required || !p.nullable) { _%>
+            <%_ if (p.required && !p.nullable) { _%>
             <%- p.scatsWrapperType %>.fromJson(json.<%= p.name %>),
             <%_ } else { _%>
             option(json.<%= p.name %>).map(_ => <%- p.type %>Dto.fromJson(_)),
@@ -20,7 +20,7 @@ export class <%= schema.name %>Dto {
             <%_ } else if (p.isArray) { _%>
             Collection.from(option(json.<%= p.name %>).getOrElseValue([]))
                 <% if (p.itemReferencesObject) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>,
-            <%_ } else if (p.required || !p.nullable) { _%>
+            <%_ } else if (p.required && !p.nullable) { _%>
             json.<%= p.name %>,
             <%_ } else { _%>
             option(json.<%= p.name %>),
@@ -41,7 +41,7 @@ export class <%= schema.name %>Dto {
         return {
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
-            <%_ if (p.required || !p.nullable) { _%>
+            <%_ if (p.required && !p.nullable) { _%>
             <%= p.name %>: this.<%= p.name %>.toJson,
             <%_ } else { _%>
             <%= p.name %>: this.<%= p.name %>.map(_ => _.toJson).orUndefined,
@@ -50,7 +50,7 @@ export class <%= schema.name %>Dto {
             <%= p.name %>: this.<%= p.name %>
                 <% if (p.itemReferencesObject) { _%>.map(_ => _.toJson)<%_ } _%>
                 .toArray,
-            <%_ } else if (p.required || !p.nullable) { _%>
+            <%_ } else if (p.required && !p.nullable) { _%>
             <%= p.name %>: this.<%= p.name %>,
             <%_ } else { _%>
             <%= p.name %>: this.<%= p.name %>.orUndefined,

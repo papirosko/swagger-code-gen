@@ -86,6 +86,9 @@ export class Method {
                         }
                     });
             });
+        this.body.foreach(b => {
+            console.log(path + ' => body: ' + b.schemaType + ' ' + (b as Property).required);
+        });
 
         this.bodyDescription = option(def.requestBody).flatMap(body => option(body.description));
 
@@ -109,7 +112,8 @@ export class Method {
         this.response = mimeTypes.get('application/json')
             .orElseValue(mimeTypes.values.headOption)
             .map(p => Property.fromDefinition('', p.schema, schemasTypes, options).copy({
-                nullable: false
+                nullable: false,
+                required: true
             }))
             .map(r => ({
                 asProperty: r,

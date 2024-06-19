@@ -67,7 +67,7 @@ export class Property implements Schema {
 
         const description = option(definition.description);
         // fields are not required by default
-        const required = option(definition.required).contains(false);
+        const required = !option(definition.required).contains(false);
 
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
@@ -91,7 +91,12 @@ export class Property implements Schema {
 
 
     get jsType(): string {
-        return Property.toJsType(this.type, this.items);
+        let res = Property.toJsType(this.type, this.items);
+        if (this.nullable) {
+            res = res + '| null';
+        }
+        return res;
+
     }
 
     get isArray(): boolean {
@@ -149,7 +154,7 @@ export class Property implements Schema {
      */
     get scatsWrapperType(): string {
         if (this.referencesObject) {
-            return this.nullable ? `Option<${this.type}Dto>` : `${this.type}Dto`;
+            return !this.nullable && this.required ? `${this.type}Dto` : `Option<${this.type}Dto>`;
         } else if (this.isArray) {
             if (this.itemReferencesObject) {
                 return `Collection<${this.items}Dto>`;
@@ -157,7 +162,7 @@ export class Property implements Schema {
                 return `Collection<${Property.toJsType(this.items)}>`;
             }
         } else {
-            return this.nullable ? `Option<${this.jsType}>` : this.jsType;
+            return !this.nullable && this.required ? this.jsType : `Option<${this.jsType}>`;
         }
     }
 }

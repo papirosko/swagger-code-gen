@@ -41,6 +41,8 @@ export class ApiClient {
                     body.toArray,
                     <%_ } else if (body.referencesObject) { -%>
                     body.toJson,
+                    <%_ } else if (!body.required) { -%>
+                    body.orUndefined,
                     <%_ } else { -%>
                     body,
                     <%_ } -%>
