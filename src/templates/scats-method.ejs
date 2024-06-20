@@ -39,6 +39,8 @@ export class ApiClient {
                     body.map(_ => _.toJson).toArray,
                     <%_ } else if (body.isArray && !body.itemReferencesObject) { -%>
                     body.toArray,
+                    <%_ } else if (body.referencesObject && !body.required) { -%>
+                    body.map(b => b.toJson).orUndefined,
                     <%_ } else if (body.referencesObject) { -%>
                     body.toJson,
                     <%_ } else if (!body.required) { -%>

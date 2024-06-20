@@ -67,6 +67,7 @@ export class Method {
 
         this.body = option(def.requestBody).flatMap(body => option(body.content))
             .flatMap(body => {
+                const bodyRequired = option(def.requestBody.required).contains(true);
                 const mimeTypes = Collection.from(Object.keys(body));
                 return mimeTypes
                     .find(_ => _ === 'application/json')
@@ -79,16 +80,15 @@ export class Method {
                             // may be wrong. We make nullable value true only if it is explicitly requested.
                             const bProperty = res as Property;
                             return bProperty.copy({
-                                nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable
+                                nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable,
+                                required: bodyRequired
                             });
                         } else {
                             return res;
                         }
                     });
             });
-        this.body.foreach(b => {
-            console.log(path + ' => body: ' + b.schemaType + ' ' + (b as Property).required);
-        });
+
 
         this.bodyDescription = option(def.requestBody).flatMap(body => option(body.description));
 

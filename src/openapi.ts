@@ -52,6 +52,7 @@ export interface OpenApiMethod {
     parameters?: OpenApiParam[];
     requestBody?: {
         description?: string;
+        required?: boolean;
         content?: {
             [mimeType: string]: {
                 schema: OpenApiSchema;

@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"
@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/papirosko/swagger-code-gen#readme",
   "scripts": {
-    "test:petstore": "npm run build && mkdir -p tmp && ts-node-esm ./dist/cli.mjs --enableScats --targetNode --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
+    "test:petstore": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
@@ -43,7 +43,7 @@
     "@typescript-eslint/parser": "^5.10.2",
     "eslint": "^7.30.0",
     "rimraf": "^3.0.2",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "typescript": "^4.9.3"
   }
 }

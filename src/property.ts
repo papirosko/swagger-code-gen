@@ -67,7 +67,7 @@ export class Property implements Schema {
 
         const description = option(definition.description);
         // fields are not required by default
-        const required = !option(definition.required).contains(false);
+        const required = option(definition.required).contains(true);
 
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
