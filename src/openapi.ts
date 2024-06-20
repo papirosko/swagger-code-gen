@@ -21,6 +21,7 @@ export interface OpenApiSchema {
     readonly type: string;
     enum?: string[];
     default?: string | number;
+    required?: string[] | boolean;
     properties: {
         [name: string]: OpenApiProperty;
     };

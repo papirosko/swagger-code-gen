@@ -36,15 +36,35 @@ export class SchemaFactory {
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
         } else if (def.type === 'string') {
-            return Property.fromDefinition(name, def, schemasTypes, options);
+            return Property.fromDefinition(name, {
+                ...def,
+                required: option(def.required).filter(x => typeof x === 'boolean')
+                    .map(x => x as boolean).orUndefined
+            }, schemasTypes, options);
         } else if (def.type === 'boolean') {
-            return Property.fromDefinition(name, def, schemasTypes, options);
+            return Property.fromDefinition(name, {
+                ...def,
+                required: option(def.required).filter(x => typeof x === 'boolean')
+                    .map(x => x as boolean).orUndefined
+            }, schemasTypes, options);
         } else if (def.type === 'integer') {
-            return Property.fromDefinition(name, def, schemasTypes, options);
+            return Property.fromDefinition(name, {
+                ...def,
+                required: option(def.required).filter(x => typeof x === 'boolean')
+                    .map(x => x as boolean).orUndefined
+            }, schemasTypes, options);
         } else if (def.type === 'array') {
-            return Property.fromDefinition(name, def, schemasTypes, options);
+            return Property.fromDefinition(name, {
+                ...def,
+                required: option(def.required).filter(x => typeof x === 'boolean')
+                    .map(x => x as boolean).orUndefined
+            }, schemasTypes, options);
         } else {
-            return Property.fromDefinition(name, def, schemasTypes, options);
+            return Property.fromDefinition(name, {
+                ...def,
+                required: option(def.required).filter(x => typeof x === 'boolean')
+                    .map(x => x as boolean).orUndefined
+            }, schemasTypes, options);
             // throw new Error(`unsupported schema type: ${def.type}`);
         }
 
@@ -89,8 +109,14 @@ export class SchemaObject implements Schema {
                           def: OpenApiSchema,
                           schemasTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
-        const properties = Collection.from(Object.keys(def.properties)).map(p =>
-            Property.fromDefinition(p, def.properties[p], schemasTypes, options)
+        const explicitlyRequired = option(def.required)
+            .map(arr => typeof arr === 'boolean' ? Nil : Collection.from(arr));
+        const properties = Collection.from(Object.keys(def.properties)).map(propName => {
+                const property = Property.fromDefinition(propName, def.properties[propName], schemasTypes, options);
+                return property.copy({
+                    required: explicitlyRequired.exists(c => c.contains(propName)) ? true : property.required
+                });
+            }
         );
         return new SchemaObject(name, def.title, def.type, properties);
     }
