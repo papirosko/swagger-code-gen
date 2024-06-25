@@ -60,10 +60,29 @@ export class Property implements Schema {
                         ).mkString(' & ')
                     )
             )
+            .orElse(() =>
+                option(definition.anyOf)
+                    .map(x => Collection.from(x))
+                    .filter(x => x.nonEmpty)
+                    .map(x => {
+                        return x
+                            .filter(t => t.type !== 'null')
+                            .flatMapOption(oneOfItem =>
+                            option(oneOfItem.$ref)
+                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
+                                .orElseValue(option(oneOfItem.type))
+                        ).mkString(' | ');
+                    })
+            )
             .getOrElseValue(definition.type);
 
         const nullable = option(definition.nullable).contains(true) ||
-            (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false));
+            (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false)) ||
+            option(definition.anyOf)
+                .map(x => Collection.from(x))
+                .filter(x => x.nonEmpty)
+                .exists(anyOf => anyOf.exists(t => t.type === 'null'))
+        ;
 
         const description = option(definition.description);
         // fields are not required by default
@@ -93,7 +112,7 @@ export class Property implements Schema {
     get jsType(): string {
         let res = Property.toJsType(this.type, this.items);
         if (this.nullable) {
-            res = res + '| null';
+            res = res + ' | null';
         }
         return res;
 
@@ -162,7 +181,8 @@ export class Property implements Schema {
                 return `Collection<${Property.toJsType(this.items)}>`;
             }
         } else {
-            return !this.nullable && this.required ? this.jsType : `Option<${this.jsType}>`;
+            const jsType = Property.toJsType(this.type, this.items);
+            return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }
     }
 }

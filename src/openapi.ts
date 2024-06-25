@@ -12,6 +12,7 @@ export interface OpenApiProperty {
     items?: OpenApiProperty;
     oneOf?: OpenApiProperty[];
     allOf?: OpenApiProperty[];
+    anyOf?: OpenApiProperty[];
 }
 
 
