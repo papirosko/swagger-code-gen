@@ -47,7 +47,11 @@ export async function <%= method.endpointName %>(
     <%_ }) -%>
     <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
     if (!!<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>) {
-        <%_ if (p.jsType === 'string') { -%>
+        <%_ if (p.isArray) { -%>
+        <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
+            queryParams.push(`<%= p.name %>=${p}`);
+        });
+        <%_ } else if (p.jsType === 'string') { -%>
         queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
         <%_ } else { -%>
         queryParams.push(`<%= p.name %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
