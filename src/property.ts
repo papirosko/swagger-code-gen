@@ -16,7 +16,8 @@ export class Property implements Schema {
                 readonly required: boolean,
                 readonly items: string,
                 readonly referencesObject: boolean,
-                readonly itemReferencesObject: boolean) {
+                readonly itemReferencesObject: boolean,
+                readonly enumValues: Option<Collection<string>>) {
     }
 
 
@@ -31,6 +32,7 @@ export class Property implements Schema {
             option(p.items).getOrElseValue(this.items),
             option(p.referencesObject).getOrElseValue(this.referencesObject),
             option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
+            option(p.enumValues).getOrElseValue(this.enumValues),
         );
     }
 
@@ -105,7 +107,10 @@ export class Property implements Schema {
             )
             .getOrElseValue('any');
 
-        return new Property(name, type, description, null, nullable, required, items, referencesObject, itemReferencesObject);
+        const enumValues = option(definition.enum).map(x => Collection.from(x));
+
+        return new Property(name, type, description, null, nullable, required,
+            items, referencesObject, itemReferencesObject, enumValues);
     }
 
 
@@ -113,6 +118,16 @@ export class Property implements Schema {
         let res = Property.toJsType(this.type, this.items);
         if (this.nullable) {
             res = res + ' | null';
+        } else if (this.enumValues.exists(x => x.nonEmpty)) {
+            res = this.enumValues.get
+                .map(enumValue => {
+                    if (this.type === 'string') {
+                        return `'${enumValue}'`;
+                    } else {
+                        return enumValue;
+                    }
+                })
+                .mkString(" | ");
         }
         return res;
 
@@ -181,7 +196,18 @@ export class Property implements Schema {
                 return `Collection<${Property.toJsType(this.items)}>`;
             }
         } else {
-            const jsType = Property.toJsType(this.type, this.items);
+            let jsType = Property.toJsType(this.type, this.items);
+            if (this.enumValues.exists(x => x.nonEmpty)) {
+                jsType = this.enumValues.get
+                    .map(enumValue => {
+                        if (this.type === 'string') {
+                            return `'${enumValue}'`;
+                        } else {
+                            return enumValue;
+                        }
+                    })
+                    .mkString(" | ");
+            }
             return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }
     }

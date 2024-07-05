@@ -33,7 +33,8 @@ export class Method {
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
 
-    constructor(readonly path: string, readonly method: string,
+    constructor(readonly path: string,
+                readonly method: string,
                 def: OpenApiMethod,
                 schemasTypes: HashMap<string, SchemaType>,
                 options: GenerationOptions) {
