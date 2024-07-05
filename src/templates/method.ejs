@@ -12,13 +12,13 @@
 <% method.parameters.foreach(p => { -%>
  * @param {<%= p.jsType %>} <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
 <% }); -%>
-<%_ if (method.body.nonEmpty) { -%>
- * @param {<%= method.body.get.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
+<%_ if (body.nonEmpty) { -%>
+ * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
  * @return {<%= method.response.responseType %>} <%= method.response.description %>
  */
-export async function <%= method.endpointName %>(
+export async function <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
     <%_ if (!method.wrapParamsInObject) { -%>
     <%_ method.parameters.foreach(p => { -%>
     <%= p.uniqueName %><%= p.required ? '' : '?'%>: <%- p.jsType %><%- p.defaultValue.map(x => ` = ${x}`).getOrElseValue('') %>,
@@ -30,8 +30,8 @@ export async function <%= method.endpointName %>(
         <%_ }) -%>
     },
     <%_ } -%>
-    <%_ if (method.body.nonEmpty) { -%>
-    body<%= method.body.get.required ? '' : '?'%>: <%- method.body.get.jsType %>,
+    <%_ if (body.nonEmpty) { -%>
+    body<%= body.get.body.required ? '' : '?'%>: <%- body.get.body.jsType %>,
     <%_ } -%>
     requestOptions: RequestOptions = defReqOpts()
 ): Promise<<%- method.response.responseType %>> {
@@ -62,9 +62,19 @@ export async function <%= method.endpointName %>(
         query = '?' + queryParams.join('&');
     }
     <%_ }  -%>
+    let bodySerialised: BodyInit | null = null;
+    <%_ if (body.nonEmpty && body.get.mimeType === 'application/json') {%>
+    bodySerialised = JSON.stringify(body);
+    <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/x-www-form-urlencoded') { -%>
+    bodySerialised = objectToFormWwwEncoded(body);
+    <%_ } else if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') { -%>
+    bodySerialised = objectToForm(body);
+    <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/octet-stream') { -%>
+    bodySerialised = body;
+    <%_ }  -%>
     const request = new Request(`${requestOptions.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
         method: '<%= method.method %>',
-        body: <%= method.body.map(() => 'JSON.stringify(body)').getOrElseValue('undefined') %>,
+        body: bodySerialised,
         headers: {
             ...requestOptions.headers || {},
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>

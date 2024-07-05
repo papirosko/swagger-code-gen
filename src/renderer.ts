@@ -8,6 +8,8 @@ import path, {dirname} from 'path';
 
 import {fileURLToPath} from 'url';
 
+import * as scatsLib from 'scats';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -23,6 +25,7 @@ export class Renderer {
         const view = await ejs.renderFile(
             path.resolve(__dirname, 'templates/index.ejs'),
             {
+                scatsLib: scatsLib,
                 schemas: schemas,
                 methods: methods,
                 scats: enableScats,

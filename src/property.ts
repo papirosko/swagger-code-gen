@@ -1,5 +1,5 @@
 import {OpenApiProperty} from './openapi.js';
-import {Collection, HashMap, Option, option} from 'scats';
+import {Collection, HashMap, none, Option, option} from 'scats';
 import {GenerationOptions, Schema, SchemaType} from './schemas.js';
 
 const SCHEMA_PREFIX = '#/components/schemas/';
@@ -10,6 +10,7 @@ export class Property implements Schema {
 
     constructor(readonly name: string,
                 readonly type: string,
+                readonly format: Option<string>,
                 readonly description: Option<string>,
                 readonly defaultValue: any,
                 readonly nullable: boolean,
@@ -25,6 +26,7 @@ export class Property implements Schema {
         return new Property(
             option(p.name).getOrElseValue(this.name),
             option(p.type).getOrElseValue(this.type),
+            option(p.format).getOrElseValue(this.format),
             option(p.description).getOrElseValue(this.description),
             option(p.defaultValue).getOrElseValue(this.defaultValue),
             option(p.nullable).getOrElseValue(this.nullable),
@@ -109,13 +111,13 @@ export class Property implements Schema {
 
         const enumValues = option(definition.enum).map(x => Collection.from(x));
 
-        return new Property(name, type, description, null, nullable, required,
+        return new Property(name, type, option(definition.format), description, null, nullable, required,
             items, referencesObject, itemReferencesObject, enumValues);
     }
 
 
     get jsType(): string {
-        let res = Property.toJsType(this.type, this.items);
+        let res = Property.toJsType(this.type, this.items, this.format);
         if (this.nullable) {
             res = res + ' | null';
         } else if (this.enumValues.exists(x => x.nonEmpty)) {
@@ -127,7 +129,7 @@ export class Property implements Schema {
                         return enumValue;
                     }
                 })
-                .mkString(" | ");
+                .mkString(' | ');
         }
         return res;
 
@@ -137,9 +139,15 @@ export class Property implements Schema {
         return this.type === 'array';
     }
 
-    static toJsType(tpe: string, itemTpe = 'any'): string {
+    static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         switch (tpe) {
             case 'integer': return 'number';
+            case 'string':
+                if (format.contains('binary')) {
+                    return 'Blob | Buffer';
+                } else {
+                    return 'string';
+                }
             case 'array': return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
             default: return tpe;
         }
@@ -196,7 +204,7 @@ export class Property implements Schema {
                 return `Collection<${Property.toJsType(this.items)}>`;
             }
         } else {
-            let jsType = Property.toJsType(this.type, this.items);
+            let jsType = Property.toJsType(this.type, this.items, this.format);
             if (this.enumValues.exists(x => x.nonEmpty)) {
                 jsType = this.enumValues.get
                     .map(enumValue => {
@@ -206,7 +214,7 @@ export class Property implements Schema {
                             return enumValue;
                         }
                     })
-                    .mkString(" | ");
+                    .mkString(' | ');
             }
             return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }

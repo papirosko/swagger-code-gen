@@ -1,11 +1,5 @@
-export class ApiClient {
 
-    constructor(private readonly requestOptions: RequestOptions = defReqOpts()) {
-    }
-
-
-    <% methods.foreach(method => { %>
-    async <%= method.endpointName %>(
+    async <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
         <%_ if (!method.wrapParamsInObject) { -%>
         <%_ method.parameters.foreach(p => { -%>
         <%= p.uniqueName %>: <%- p.required && !p.nullable ? p.jsType : `Option<${p.jsType}> = none` %>,
@@ -17,13 +11,13 @@ export class ApiClient {
             <%_ }) -%>
         },
         <%_ } -%>
-        <%_ method.body.foreach(body => { -%>
-        body: <%- body.scatsWrapperType %>,
+        <%_ body.foreach(body => { -%>
+        body: <%- body.body.scatsWrapperType %>,
         <%_ }); -%>
         requestOptions: RequestOptions = this.requestOptions
     ): Promise<TryLike<<%- method.response.asProperty.scatsWrapperType %>>> {
         return (await Try.promise(() =>
-                <%= method.endpointName %>(
+                <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
                     <%_ if (!method.wrapParamsInObject) { -%>
                     <%_ method.parameters.foreach(p => { -%>
                     <%= p.uniqueName %><%- p.required && !p.nullable ? '' : `.orUndefined` %>,
@@ -31,7 +25,7 @@ export class ApiClient {
                     <%_ } else { -%>
                     params,
                     <%_ } -%>
-                    <%_ method.body.foreach(body => { -%>
+                    <%_ body.map(x => x.body).foreach(body => { -%>
                     <%_ if (body.schemaType === 'object') { _%>
                     body.toJson,
                     <%_ } else if (body.schemaType === 'property') { _%>
@@ -64,7 +58,4 @@ export class ApiClient {
             <%_ } _%>
             <%_ } _%>;
     }
-    <% }); %>
 
-
-}

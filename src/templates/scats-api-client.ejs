@@ -1,0 +1,23 @@
+export class ApiClient {
+
+    constructor(private readonly requestOptions: RequestOptions = defReqOpts()) {
+    }
+
+
+    <%
+    methods.foreach(method => {
+        if (method.body.nonEmpty) {
+            method.body.foreach(body => {
+    %>
+    <%- include('scats-method.ejs', {method: method, body: scatsLib.some(body)}); %>
+    <%
+            });
+        } else {
+    %>
+    <%- include('scats-method.ejs', {method: method, body: scatsLib.none }); %>
+    <%
+        }
+    });
+    %>
+
+}

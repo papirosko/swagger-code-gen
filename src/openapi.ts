@@ -20,6 +20,7 @@ export interface OpenApiSchema {
     readonly name: string;
     readonly title: string;
     readonly type: string;
+    readonly format?: string;
     enum?: string[];
     default?: string | number;
     required?: string[] | boolean;

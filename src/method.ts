@@ -1,5 +1,5 @@
 import {OpenApiMethod} from './openapi.js';
-import {Collection, HashMap, HashSet, identity, Option, option} from 'scats';
+import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats';
 import {Property} from './property.js';
 import {Parameter} from './parameter.js';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
@@ -20,6 +20,21 @@ const sortByIn = HashMap.of(
     ['body', 4],
 );
 
+
+export interface RequestBody {
+    body: Schema;
+    mimeType: string;
+    suffix: string;
+}
+
+
+const supportedBodyMimeTypes: HashMap<string, string> = HashMap.of(
+    ['application/json', 'Json'],
+    ['application/x-www-form-urlencoded', 'Form'],
+    ['multipart/form-data', 'File'],
+    ['application/octet-stream', 'Binary'],
+);
+
 export class Method {
 
     readonly tags: HashSet<string>;
@@ -27,7 +42,7 @@ export class Method {
     readonly description?: string;
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
-    private readonly body: Option<Schema>;
+    private readonly body: Collection<RequestBody>;
     readonly bodyDescription: Option<string>;
 
     private readonly operationId: Option<string>;
@@ -66,29 +81,32 @@ export class Method {
             }
         });
 
-        this.body = option(def.requestBody).flatMap(body => option(body.content))
-            .flatMap(body => {
+        this.body = option(def.requestBody)
+            .flatMap(body => option(body.content))
+            .map(body => {
                 const bodyRequired = option(def.requestBody.required).contains(true);
                 const mimeTypes = Collection.from(Object.keys(body));
-                return mimeTypes
-                    .find(_ => _ === 'application/json')
-                    .orElseValue(mimeTypes.headOption)
-                    .map(mt => {
-                        const bodySchemaDef = body[mt].schema;
-                        const res = SchemaFactory.build('body', bodySchemaDef, schemasTypes, options);
-                        if (res.schemaType === 'property') {
-                            // '--referencedObjectsNullableByDefault' flag makes body to be nullable by default, which
-                            // may be wrong. We make nullable value true only if it is explicitly requested.
-                            const bProperty = res as Property;
-                            return bProperty.copy({
-                                nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable,
-                                required: bodyRequired
-                            });
-                        } else {
-                            return res;
-                        }
-                    });
-            });
+                const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
+                return supportedMimeTypes.map(mt => {
+                    const bodySchemaDef = body[mt].schema;
+                    let res = SchemaFactory.build('body', bodySchemaDef, schemasTypes, options);
+                    if (res.schemaType === 'property') {
+                        // '--referencedObjectsNullableByDefault' flag makes body to be nullable by default, which
+                        // may be wrong. We make nullable value true only if it is explicitly requested.
+                        const bProperty = res as Property;
+                        res = bProperty.copy({
+                            nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable,
+                            required: bodyRequired
+                        });
+                    }
+                    return {
+                        body: res,
+                        mimeType: mt,
+                        suffix: supportedMimeTypes.size > 1 ? supportedBodyMimeTypes.get(mt).getOrElseValue(mt) : ''
+                    } as RequestBody;
+                });
+            })
+            .getOrElseValue(Nil);
 
 
         this.bodyDescription = option(def.requestBody).flatMap(body => option(body.description));
@@ -122,12 +140,12 @@ export class Method {
                 description: respDef.description
             } as ResponseDetails))
             .getOrElseValue(({
-                asProperty: Property.fromDefinition('UNKNOWN', { type: 'any'}, schemasTypes, options),
+                asProperty: Property.fromDefinition('UNKNOWN', {type: 'any'}, schemasTypes, options),
                 responseType: 'any'
             }));
 
 
-        this.wrapParamsInObject = this.parameters.size > 2 || (this.body.isDefined) && this.parameters.nonEmpty;
+        this.wrapParamsInObject = this.parameters.size > 2 || (this.body.nonEmpty) && this.parameters.nonEmpty;
 
     }
 

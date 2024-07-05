@@ -1,3 +1,4 @@
+/* eslint-disable */
 /*********************************************************
  *********************************************************
  *********************************************************
@@ -11,7 +12,7 @@
  *********************************************************
  *********************************************************/
 <% if (targetNode) {%>
-import fetch, {Request, Response} from 'node-fetch';
+import fetch, {Request, Response, BodyInit} from 'node-fetch';
 <% } %>
 <% if (scats) {%>
 import {option, Option, Collection, Try, TryLike, none} from 'scats';
@@ -34,6 +35,38 @@ export const defaultRequestOptions: RequestOptions = {
 };
 
 const defReqOpts = () => defaultRequestOptions;
+
+
+function valueToString(value: any): string {
+    if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number') {
+        return value.toString();
+    } else {
+        return JSON.stringify(value);
+    }
+}
+
+/**
+ * Helper to serialize data for 'multipart/form-data'
+ */
+function objectToForm(o: object): FormData {
+    const res = new FormData();
+    Object.keys(o)
+        .filter(k => o[k] !== undefined && o[k] !== null)
+        .forEach(k => {
+            res.append(k, valueToString(o[k]));
+        });
+    return res;
+}
+
+/**
+ * Helper to serialize data for 'application/x-www-form-urlencoded'
+ */
+function objectToFormWwwEncoded(o: object): string {
+    return Object.keys(o)
+        .filter(k => o[k] !== undefined && o[k] !== null)
+        .map(k => `${k}=${encodeURIComponent(valueToString(o[k]))}`)
+        .join('&');
+}
 
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
@@ -61,9 +94,22 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
 
 
 
-<% methods.foreach(method => { %>
-<%- include('method.ejs', {method: method}); %>
-<% }); %>
+<%
+methods.foreach(method => {
+    if (method.body.nonEmpty) {
+        method.body.foreach(body => {
+%>
+<%- include('method.ejs', {method: method, body: scatsLib.some(body)}); %>
+<%
+        });
+    } else {
+%>
+<%- include('method.ejs', {method: method, body: scatsLib.none }); %>
+<%
+    }
+});
+%>
+
 
 
 <% if (scats) {%>
@@ -71,7 +117,7 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
 <%- include('scats-schema.ejs', {schema: schema}); %>
 <% }); %>
 
-<%- include('scats-method.ejs'); %>
+<%- include('scats-api-client.ejs'); %>
 
 <% } %>
 
