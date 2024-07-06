@@ -77,9 +77,13 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         body: bodySerialised,
         headers: {
             ...requestOptions.headers || {},
+            'Accept': 'application/json',
+            <%_ if (body.nonEmpty) {%>
+            'Content-Type': '<%= body.get.mimeType %>',
+            <%_ }  -%>
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
             <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
-            <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>
+            <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
             <%_ }) -%>
             <%_ }  -%>
         }
