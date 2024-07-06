@@ -78,7 +78,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         headers: {
             ...requestOptions.headers || {},
             'Accept': 'application/json',
-            <%_ if (body.nonEmpty) {%>
+            <%_ if (body.nonEmpty && body.get.mimeType !== 'multipart/form-data') {%>
             'Content-Type': '<%= body.get.mimeType %>',
             <%_ }  -%>
             <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
