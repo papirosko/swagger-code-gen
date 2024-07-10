@@ -1,6 +1,6 @@
 export class ApiClient {
 
-    constructor(private readonly requestOptions: RequestOptions = defReqOpts()) {
+    constructor(readonly requestOptions: Readonly<RequestOptions> = defReqOpts()) {
     }
 
 
