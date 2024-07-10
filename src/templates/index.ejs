@@ -19,6 +19,7 @@ import {option, Option, Collection, Try, TryLike, none} from 'scats';
 <% } %>
 
 export interface RequestOptions {
+    signal?: AbortSignal,
     apiPrefix?: string;
     headers?: Record<string, string>;
     preProcessRequest?: (request: Request) => Request | Promise<Request>;

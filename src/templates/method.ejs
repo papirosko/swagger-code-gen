@@ -75,6 +75,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     const request = new Request(`${requestOptions.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
         method: '<%= method.method %>',
         body: bodySerialised,
+        signal: requestOptions.signal,
         headers: {
             ...requestOptions.headers || {},
             'Accept': 'application/json',
