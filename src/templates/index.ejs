@@ -54,7 +54,13 @@ function objectToForm(o: object): FormData {
     Object.keys(o)
         .filter(k => o[k] !== undefined && o[k] !== null)
         .forEach(k => {
-            res.append(k, valueToString(o[k]));
+            if (Array.isArray(o[k])) {
+                o[k].forEach(e => {
+                    res.append(k, valueToString(e));
+                })
+            } else {
+                res.append(k, valueToString(o[k]));
+            }
         });
     return res;
 }
