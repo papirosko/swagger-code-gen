@@ -49,7 +49,7 @@ function valueToString(value: any): string {
 /**
  * Helper to serialize data for 'multipart/form-data'
  */
-function objectToForm(o: object): FormData {
+function objectToForm(o: Record<string, any>): FormData {
     const res = new FormData();
     Object.keys(o)
         .filter(k => o[k] !== undefined && o[k] !== null)
@@ -68,7 +68,7 @@ function objectToForm(o: object): FormData {
 /**
  * Helper to serialize data for 'application/x-www-form-urlencoded'
  */
-function objectToFormWwwEncoded(o: object): string {
+function objectToFormWwwEncoded(o: Record<string, any>): string {
     return Object.keys(o)
         .filter(k => o[k] !== undefined && o[k] !== null)
         .map(k => `${k}=${encodeURIComponent(valueToString(o[k]))}`)
@@ -82,7 +82,8 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions):
     if (postProcessed.ok) {
         let json: any = null;
         if (postProcessed.headers.has('content-length')) {
-            const ct = parseInt(postProcessed.headers.get('content-length'));
+            const ctLent = postProcessed.headers.get('content-length');
+            const ct = ctLent != null ? parseInt(ctLent): 0;
             if (ct > 0) {
                 json = await postProcessed.json()
             }
