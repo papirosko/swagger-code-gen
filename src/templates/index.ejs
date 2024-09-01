@@ -58,6 +58,8 @@ function objectToForm(o: Record<string, any>): FormData {
                 o[k].forEach(e => {
                     res.append(k, valueToString(e));
                 })
+            } else if (o[k] instanceof File) {
+                res.append(k, o[k]);
             } else {
                 res.append(k, valueToString(o[k]));
             }

@@ -142,6 +142,7 @@ export class Property implements Schema {
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         switch (tpe) {
             case 'integer': return 'number';
+            case 'file': return 'File';
             case 'string':
                 if (format.contains('binary')) {
                     return 'Blob | Buffer';

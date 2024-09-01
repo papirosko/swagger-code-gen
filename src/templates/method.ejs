@@ -62,6 +62,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         query = '?' + queryParams.join('&');
     }
     <%_ }  -%>
+
     let bodySerialised: BodyInit | null = null;
     <%_ if (body.nonEmpty && body.get.mimeType === 'application/json') {%>
     bodySerialised = JSON.stringify(body);
@@ -72,22 +73,29 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/octet-stream') { -%>
     bodySerialised = body;
     <%_ }  -%>
+
+    const headers: HeadersInit = {
+        ...requestOptions.headers || {},
+        'Accept': 'application/json',
+        <%_ if (body.nonEmpty && body.get.mimeType !== 'multipart/form-data') {%>
+        'Content-Type': '<%= body.get.mimeType %>',
+        <%_ }  -%>
+        <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
+        <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
+        <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
+        <%_ }) -%>
+        <%_ }  -%>
+    };
+    <%_ if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') {%>
+    delete headers['Content-Type'];
+    <%_ }  -%>
+
+
     const request = new Request(`${requestOptions.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
         method: '<%= method.method %>',
         body: bodySerialised,
         signal: requestOptions.signal,
-        headers: {
-            ...requestOptions.headers || {},
-            'Accept': 'application/json',
-            <%_ if (body.nonEmpty && body.get.mimeType !== 'multipart/form-data') {%>
-            'Content-Type': '<%= body.get.mimeType %>',
-            <%_ }  -%>
-            <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
-            <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
-            <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
-            <%_ }) -%>
-            <%_ }  -%>
-        }
+        headers: headers
     });
     return requestImpl<<%- method.response.responseType %>>(request, requestOptions);
 }
