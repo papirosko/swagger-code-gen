@@ -13,6 +13,7 @@
  *********************************************************/
 <% if (targetNode) {%>
 import fetch, {Request, Response, BodyInit} from 'node-fetch';
+import FormData from 'form-data';
 <% } %>
 <% if (scats) {%>
 import {option, Option, Collection, Try, TryLike, none} from 'scats';
