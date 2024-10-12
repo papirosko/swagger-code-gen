@@ -52,17 +52,25 @@ function valueToString(value: any): string {
  */
 function objectToForm(o: Record<string, any>): FormData {
     const res = new FormData();
+
+    const addProp = (name: string, value: any) => {
+        if (value instanceof File) {
+            res.append(name, value);
+        } else {
+            res.append(name, valueToString(value));
+        }
+    };
+
+
     Object.keys(o)
         .filter(k => o[k] !== undefined && o[k] !== null)
         .forEach(k => {
             if (Array.isArray(o[k])) {
                 o[k].forEach(e => {
-                    res.append(k, valueToString(e));
-                })
-            } else if (o[k] instanceof File) {
-                res.append(k, o[k]);
+                    addProp(k, e);
+                });
             } else {
-                res.append(k, valueToString(o[k]));
+                addProp(k, o[k]);
             }
         });
     return res;
