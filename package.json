@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.7.9",
+  "version": "1.7.10",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"
@@ -31,10 +31,10 @@
   },
   "dependencies": {
     "commander": "^9.4.1",
-    "ejs": "^3.1.8",
+    "ejs": "^3.1.10",
     "log4js": "^6.7.1",
     "node-fetch": "^3.3.0",
-    "scats": "1.4.2",
+    "scats": "1.4.4",
     "tslib": "^2.4.1"
   },
   "devDependencies": {
