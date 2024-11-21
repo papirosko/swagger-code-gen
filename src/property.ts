@@ -65,6 +65,18 @@ export class Property implements Schema {
                     )
             )
             .orElse(() =>
+                option(definition.oneOf)
+                    .map(x => Collection.from(x))
+                    .filter(x => x.nonEmpty)
+                    .map(x =>
+                        x.flatMapOption(oneOfItem =>
+                            option(oneOfItem.$ref)
+                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
+                                .orElseValue(option(oneOfItem.type))
+                        ).mkString(' | ')
+                    )
+            )
+            .orElse(() =>
                 option(definition.anyOf)
                     .map(x => Collection.from(x))
                     .filter(x => x.nonEmpty)
