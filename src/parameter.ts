@@ -27,7 +27,16 @@ export class Parameter {
         const inValue = def.in;
         const desc = option(def.description);
         let defaultValue: Option<string | number> = none;
-        const schema = SchemaFactory.build(def.name, def.schema, schemas, options);
+        const schema = def.schema ?
+            SchemaFactory.build(def.name, def.schema, schemas, options) :
+            Property.fromDefinition(name, {
+                    ...def,
+                    type: def['type'], // swagger support
+                    required: option(def.required).filter(x => typeof x === 'boolean')
+                        .map(x => x as boolean).orUndefined
+                },
+                schemas,
+                options);
         let jsType: string;
         if (schema instanceof SchemaObject) {
             jsType = schema.type;
@@ -55,7 +64,7 @@ export class Parameter {
             throw new Error('Unknown schema type');
         }
         const required = option(def.required).exists(identity) || defaultValue.nonEmpty;
-        const isArray = def.schema.type === 'array';
+        const isArray = def?.schema?.type === 'array';
         return new Parameter(name, name, inValue, jsType, required, isArray, defaultValue, desc);
     }
 

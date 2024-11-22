@@ -22,7 +22,7 @@ export class NameUtils {
         if (n === 'delete') {
             return `$${n}`;
         } else {
-            return n;
+            return n.replace(/\./g, '_');
         }
     }
 }
