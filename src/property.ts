@@ -41,15 +41,15 @@ export class Property implements Schema {
 
     static fromDefinition(name: string,
                           definition: OpenApiProperty,
-                          schemas: HashMap<string, SchemaType>,
+                          schemaTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
 
         const referencesObject = option(definition.$ref)
-            .exists(ref => schemas.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
+            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
 
         const itemReferencesObject = option(definition.items)
             .flatMap(i => option(i.$ref))
-            .exists(ref => schemas.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
+            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
 
         const type = option(definition.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
@@ -168,6 +168,9 @@ export class Property implements Schema {
         }
     }
 
+    get normalType() {
+        return NameUtils.normaliseClassname(this.type);
+    }
 
     /**
      * If the property is array, then return scats wrapper type for item property,
@@ -186,7 +189,8 @@ export class Property implements Schema {
     get itemScatsWrapperType(): string {
         if (this.isArray) {
             if (this.itemReferencesObject) {
-                return `${this.items}Dto`;
+                const cls = NameUtils.normaliseClassname(this.items);
+                return `${cls}Dto`;
             } else {
                 return Property.toJsType(this.items);
             }
@@ -211,10 +215,12 @@ export class Property implements Schema {
      */
     get scatsWrapperType(): string {
         if (this.referencesObject) {
-            return !this.nullable && this.required ? `${this.type}Dto` : `Option<${this.type}Dto>`;
+            const cls = NameUtils.normaliseClassname(this.type);
+            return !this.nullable && this.required ? `${cls}Dto` : `Option<${cls}Dto>`;
         } else if (this.isArray) {
             if (this.itemReferencesObject) {
-                return `Collection<${this.items}Dto>`;
+                const cls = NameUtils.normaliseClassname(this.items);
+                return `Collection<${cls}Dto>`;
             } else {
                 return `Collection<${Property.toJsType(this.items)}>`;
             }

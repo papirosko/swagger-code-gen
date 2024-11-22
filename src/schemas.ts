@@ -18,7 +18,7 @@ export interface GenerationOptions {
 export class SchemaFactory {
 
     static resolveSchemaType(def: OpenApiSchema): SchemaType {
-        if (def.type === 'object') {
+        if (def.type === 'object' || option(def.properties).exists(p => Object.keys(p).length > 0)) {
             return 'object';
         } else if (def.enum) {
             return 'enum';
