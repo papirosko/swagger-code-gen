@@ -1,5 +1,5 @@
 <%_ if (schema.schemaType === 'object') { -%>
-export class <%= schema.name %>Dto {
+export class <%= schema.normalName %>Dto {
 
     constructor(
         <%_ schema.properties.foreach(p => { -%>
@@ -8,8 +8,8 @@ export class <%= schema.name %>Dto {
     ) {}
 
 
-    static fromJson(json: <%= schema.name %>): <%= schema.name %>Dto {
-        return new <%= schema.name %>Dto(
+    static fromJson(json: <%= schema.normalName %>): <%= schema.normalName %>Dto {
+        return new <%= schema.normalName %>Dto(
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
             <%_ if (p.required && !p.nullable) { _%>
@@ -29,15 +29,15 @@ export class <%= schema.name %>Dto {
         );
     }
 
-    copy(fields: Partial<<%= schema.name %>Dto>): <%= schema.name %>Dto {
-        return new <%= schema.name %>Dto(
+    copy(fields: Partial<<%= schema.normalName %>Dto>): <%= schema.normalName %>Dto {
+        return new <%= schema.normalName %>Dto(
         <%_ schema.properties.foreach(p => { -%>
             option(fields.<%= p.name %>).getOrElseValue(this.<%= p.name %>),
         <%_ });  -%>
         );
     }
 
-    get toJson(): <%= schema.name %> {
+    get toJson(): <%= schema.normalName %> {
         return {
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>

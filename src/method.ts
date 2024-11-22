@@ -3,6 +3,7 @@ import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats
 import {Property} from './property.js';
 import {Parameter} from './parameter.js';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
+import {NameUtils} from './name.utils.js';
 
 
 export interface ResponseDetails {
@@ -150,7 +151,7 @@ export class Method {
     }
 
     get endpointName() {
-        return this.operationId.getOrElse(() => `${this.method}${Method.pathToName(this.path)}`);
+        return NameUtils.normaliseMethodName(this.operationId.getOrElse(() => `${this.method}${Method.pathToName(this.path)}`));
     }
 
     get pathWithSubstitutions(): string {

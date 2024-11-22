@@ -1,6 +1,7 @@
 import {OpenApiProperty} from './openapi.js';
 import {Collection, HashMap, none, Option, option} from 'scats';
 import {GenerationOptions, Schema, SchemaType} from './schemas.js';
+import {NameUtils} from './name.utils.js';
 
 const SCHEMA_PREFIX = '#/components/schemas/';
 
@@ -155,6 +156,7 @@ export class Property implements Schema {
         switch (tpe) {
             case 'integer': return 'number';
             case 'file': return 'File';
+            case 'any': return 'any';
             case 'string':
                 if (format.contains('binary')) {
                     return 'Blob | Buffer';
@@ -162,7 +164,7 @@ export class Property implements Schema {
                     return 'string';
                 }
             case 'array': return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
-            default: return tpe;
+            default: return NameUtils.normaliseClassname(tpe);
         }
     }
 

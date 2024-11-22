@@ -1,6 +1,7 @@
 import {OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, Nil, Option, option} from 'scats';
 import {Property} from './property.js';
+import {NameUtils} from './name.utils.js';
 
 export type SchemaType = 'object' | 'enum' | 'property';
 
@@ -31,7 +32,7 @@ export class SchemaFactory {
                  def: OpenApiSchema,
                  schemasTypes: HashMap<string, SchemaType>,
                  options: GenerationOptions): Schema {
-        if (def.type === 'object') {
+        if (def.type === 'object' || option(def.properties).exists(p => Object.keys(p).length > 0)) {
             return SchemaObject.fromDefinition(name, def, schemasTypes, options);
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
@@ -119,5 +120,9 @@ export class SchemaObject implements Schema {
             }
         );
         return new SchemaObject(name, def.title, def.type, properties);
+    }
+
+    get normalName() {
+        return NameUtils.normaliseClassname(this.name);
     }
 }
