@@ -154,6 +154,8 @@ export class Property implements Schema {
 
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         switch (tpe) {
+            case 'boolean': return 'boolean';
+            case 'number': return 'number';
             case 'integer': return 'number';
             case 'file': return 'File';
             case 'any': return 'any';
