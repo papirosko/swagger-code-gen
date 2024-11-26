@@ -9,6 +9,7 @@ export class Parameter {
     readonly in: string;
 
     constructor(readonly name: string,
+                readonly rawName: string,
                 readonly uniqueName: string,
                 readonly inValue: string,
                 readonly jsType: string,
@@ -24,6 +25,7 @@ export class Parameter {
                           options: GenerationOptions): Parameter {
 
         const name = Parameter.toJSName(def.name);
+        const rawName = def.name;
         const inValue = def.in;
         const desc = option(def.description);
         let defaultValue: Option<string | number> = none;
@@ -65,7 +67,7 @@ export class Parameter {
         }
         const required = option(def.required).exists(identity) || defaultValue.nonEmpty;
         const isArray = def?.schema?.type === 'array';
-        return new Parameter(name, name, inValue, jsType, required, isArray, defaultValue, desc);
+        return new Parameter(name, rawName, name, inValue, jsType, required, isArray, defaultValue, desc);
     }
 
     static toJSName(path: string): string {
@@ -78,6 +80,7 @@ export class Parameter {
     copy(p: Partial<Parameter>): Parameter {
         return new Parameter(
             option(p.name).getOrElseValue(this.name),
+            option(p.rawName).getOrElseValue(this.rawName),
             option(p.uniqueName).getOrElseValue(this.uniqueName),
             option(p.in).getOrElseValue(this.in),
             option(p.jsType).getOrElseValue(this.jsType),

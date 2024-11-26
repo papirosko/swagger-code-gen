@@ -82,7 +82,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         <%_ }  -%>
         <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
         <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
-        <%= p.name %>: <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
+        '<%= p.rawName %>': <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
         <%_ }) -%>
         <%_ }  -%>
     };
