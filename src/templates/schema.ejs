@@ -5,7 +5,7 @@ export interface <%= schema.normalName %> {
     <%_ }); -%>
 }
 <%_ } if (schema.schemaType === 'enum') { -%>
-export enum <%= schema.normalName %> {
+export enum <%= schema.name %> {
     <%_ schema.values.foreach(p => { -%>
     <%= p %> = '<%= p %>',
     <%_ }); -%>
