@@ -1,6 +1,11 @@
 <%_ if (schema.schemaType === 'object') { -%>
 export class <%= schema.normalName %>Dto {
 
+    /**
+    <%_ schema.properties.foreach(p => { -%>
+     * @param <%= p.name %> <%- p.description.getOrElseValue('') %>
+    <%_ }); -%>
+     */
     constructor(
         <%_ schema.properties.foreach(p => { -%>
         readonly <%= p.name %>: <%- p.scatsWrapperType %>,

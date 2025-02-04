@@ -79,6 +79,7 @@ export class SchemaEnum implements Schema {
 
     protected constructor(readonly name: string,
                           readonly title: string,
+                          readonly description: Option<string>,
                           readonly type: string,
                           readonly defaultValue: Option<string | number>,
                           readonly values: Collection<string>) {
@@ -88,6 +89,7 @@ export class SchemaEnum implements Schema {
         return new SchemaEnum(
             name,
             def.title,
+            option(def.description),
             def.type,
             option(def.default),
             option(def.enum).map(Collection.from).getOrElseValue(Nil)

@@ -44,7 +44,7 @@ export class Property implements Schema {
                           schemaTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
 
-        const referencesObject = option(definition.$ref)
+        const referencesObject: boolean = option(definition.$ref)
             .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
 
         const itemReferencesObject = option(definition.items)
@@ -85,10 +85,10 @@ export class Property implements Schema {
                         return x
                             .filter(t => t.type !== 'null')
                             .flatMapOption(oneOfItem =>
-                            option(oneOfItem.$ref)
-                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
-                                .orElseValue(option(oneOfItem.type))
-                        ).mkString(' | ');
+                                option(oneOfItem.$ref)
+                                    .map(ref => ref.substring(SCHEMA_PREFIX.length))
+                                    .orElseValue(option(oneOfItem.type))
+                            ).mkString(' | ');
                     })
             )
             .getOrElseValue(definition.type);
@@ -154,19 +154,26 @@ export class Property implements Schema {
 
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         switch (tpe) {
-            case 'boolean': return 'boolean';
-            case 'number': return 'number';
-            case 'integer': return 'number';
-            case 'file': return 'File';
-            case 'any': return 'any';
+            case 'boolean':
+                return 'boolean';
+            case 'number':
+                return 'number';
+            case 'integer':
+                return 'number';
+            case 'file':
+                return 'File';
+            case 'any':
+                return 'any';
             case 'string':
                 if (format.contains('binary')) {
                     return 'Blob | Buffer';
                 } else {
                     return 'string';
                 }
-            case 'array': return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
-            default: return NameUtils.normaliseClassname(tpe);
+            case 'array':
+                return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
+            default:
+                return NameUtils.normaliseClassname(tpe);
         }
     }
 
