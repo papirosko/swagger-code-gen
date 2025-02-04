@@ -1,4 +1,23 @@
-
+    /**
+     * <%= method.method.toUpperCase() %> <%= method.path %>
+    <% if (method.summary) { -%>
+     * @summary <%= method.summary %>
+    <% } -%>
+    <% if (method.description) { -%>
+     * @description <%= method.description %>
+    <% } -%>
+    <% if (method.wrapParamsInObject) { -%>
+     * @param {Object} params
+    <% } -%>
+    <% method.parameters.foreach(p => { -%>
+     * @param {<%= p.jsType %>} <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
+    <% }); -%>
+    <%_ if (body.nonEmpty) { -%>
+     * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
+    <%_ } -%>
+     * @param {RequestOptions} requestOptions Additional request params
+     * @return {<%= method.response.responseType %>} <%= method.response.description %>
+     */
     async <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
         <%_ if (!method.wrapParamsInObject) { -%>
         <%_ method.parameters.foreach(p => { -%>
