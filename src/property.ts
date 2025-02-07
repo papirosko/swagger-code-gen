@@ -223,6 +223,7 @@ export class Property implements Schema {
      * - schema { type=array, ref=number, nullable=true } => Collection<number>
      */
     get scatsWrapperType(): string {
+
         if (this.referencesObject) {
             const cls = NameUtils.normaliseClassname(this.type);
             return !this.nullable && this.required ? `${cls}Dto` : `Option<${cls}Dto>`;

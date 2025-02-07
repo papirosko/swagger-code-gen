@@ -6,11 +6,19 @@ import {resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-pa
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
 import {GenerationOptions} from './schemas';
+import {Option} from 'scats';
+import https from 'https';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export async function main(url: string, enableScats: boolean, targetNode: boolean, outputFile: string, options: GenerationOptions) {
+export async function main(url: string,
+                           enableScats: boolean,
+                           targetNode: boolean,
+                           outputFile: string,
+                           ignoreSSLErrors: boolean,
+                           auth: Option<{ user: string; password: string }>,
+                           options: GenerationOptions) {
 
     const {configure, getLogger} = log4js;
 
@@ -19,9 +27,19 @@ export async function main(url: string, enableScats: boolean, targetNode: boolea
 
     logger.info(`Generating code from ${url}`);
 
-    const renderer = new Renderer();
+    const httpsAgent = ignoreSSLErrors ? new https.Agent({
+        rejectUnauthorized: false,
+    }) : undefined;
 
-    fetch(url)
+    const renderer = new Renderer();
+    const headers = auth.map(a => new Headers({
+        'Authorization': `Basic ${btoa(a.user + ':' + a.password)}`
+    }));
+
+    fetch(url, {
+        headers: headers.orUndefined,
+        agent: httpsAgent
+    })
         .then(res => res.json())
         .then(async (json: any) => {
             const schemasTypes = resolveSchemasTypes(json);

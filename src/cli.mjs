@@ -2,7 +2,7 @@
 
 import {main} from './index.js';
 import {Command} from "commander";
-import {HashSet} from "scats";
+import {HashSet, option} from "scats";
 
 
 const program = new Command();
@@ -16,10 +16,16 @@ program
     .option('--excludeTags <tags...>', 'Space-separated list of tags of paths to be excluded. Path is excluded if it contains any of specified tag')
     .option('--enableScats', 'Generate scats', false)
     .option('--targetNode', 'Add imports for node-fetch into generated code', false)
+    .option('--user <username>', 'If swagger requires authorisation')
+    .option('--password <password>', 'If swagger requires authorisation')
+    .option('--ignoreSSLErrors', 'If swagger requires authorisation, but ssl cert is wrong')
     .argument('outputFile', 'File with generated code')
     .parse();
 
 const url = program.opts().url;
+const user = program.opts().user;
+const password = program.opts().password;
+const ignoreSSLErrors = program.opts().ignoreSSLErrors;
 const referencedObjectsNullableByDefault = program.opts().referencedObjectsNullableByDefault;
 const enableScats = program.opts().enableScats;
 const targetNode = program.opts().targetNode;
@@ -27,7 +33,13 @@ const outputFile = program.args[0];
 const includeTags = HashSet.from(program.opts().includeTags || []);
 const excludeTags = HashSet.from(program.opts().excludeTags || []);
 
-main(url, enableScats, targetNode, outputFile, {
+main(url, enableScats, targetNode, outputFile,
+    ignoreSSLErrors,
+    option(user).flatMap(u => option(password).map(p => ({
+        user: u,
+        password: p
+    }))),
+    {
     referencedObjectsNullableByDefault: referencedObjectsNullableByDefault,
     includeTags: includeTags,
     excludeTags: excludeTags
