@@ -43,9 +43,16 @@ export class Property implements Schema {
                           definition: OpenApiProperty,
                           schemaTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
-
         const referencesObject: boolean = option(definition.$ref)
-            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
+            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
+            // $ref cant have sublings. in case of description it should be wrapped in allOf:
+            // https://github.com/nestjs/swagger/issues/2948#issuecomment-2440965892
+            option(definition.allOf)
+                .filter(allOf => allOf.length === 1)
+                .flatMap(allOf => option(allOf[0]))
+                .flatMap(schema => option(schema.$ref))
+                .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
+        
 
         const itemReferencesObject = option(definition.items)
             .flatMap(i => option(i.$ref))
