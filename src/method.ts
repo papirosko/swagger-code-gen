@@ -122,7 +122,8 @@ export class Method {
 
         const respDef = successCode.map(_ => def.responses[_])
             .orElse(() => option(def.responses['default']))
-            .getOrElseValue(def.responses[statusCodes.head]);
+            .orElse(() => statusCodes.headOption.flatMap(code => option(def.responses[code])))
+            .getOrElseValue({});
 
         const mimeTypes = option(respDef.content)
             .map(content => Collection.from(Object.keys(content)).toMap(mimeType =>
@@ -131,6 +132,7 @@ export class Method {
 
         this.response = mimeTypes.get('application/json')
             .orElseValue(mimeTypes.values.headOption)
+            .filter(p => option(p.schema).isDefined)
             .map(p => Property.fromDefinition('', p.schema, schemasTypes, options).copy({
                 nullable: false,
                 required: true

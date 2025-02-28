@@ -114,7 +114,10 @@ export class SchemaObject implements Schema {
                           options: GenerationOptions) {
         const explicitlyRequired = option(def.required)
             .map(arr => typeof arr === 'boolean' ? Nil : Collection.from(arr));
-        const properties = Collection.from(Object.keys(def.properties)).map(propName => {
+        const properties = option(def.properties)
+            .map(props => Collection.from(Object.keys(props)))
+            .getOrElseValue(Nil)
+            .map(propName => {
                 const property = Property.fromDefinition(propName, def.properties[propName], schemasTypes, options);
                 return property.copy({
                     required: explicitlyRequired.exists(c => c.contains(propName)) ? true : property.required
