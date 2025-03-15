@@ -1,6 +1,6 @@
-import {OpenApiSchema} from './openapi.js';
+import {OpenApiProperty, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, Nil, Option, option} from 'scats';
-import {Property} from './property.js';
+import {Property, SCHEMA_PREFIX} from './property.js';
 import {NameUtils} from './name.utils.js';
 
 export type SchemaType = 'object' | 'enum' | 'property';
@@ -17,8 +17,18 @@ export interface GenerationOptions {
 
 export class SchemaFactory {
 
+    static isEmptyObjectOrArray(x: any) {
+        if (Array.isArray(x) && x.length === 0) return true;
+        if (typeof x === 'object' && Object.keys(x).length === 0) return true;
+        return false;
+    }
+
     static resolveSchemaType(def: OpenApiSchema): SchemaType {
-        if (def.type === 'object' || option(def.properties).exists(p => Object.keys(p).length > 0)) {
+        if (def.type === 'object' ||
+            option(def.properties).exists(p => Object.keys(p).length > 0) ||
+            option(def.allOf).exists(x => x.length > 0)  ||
+            SchemaFactory.isEmptyObjectOrArray(def)
+        ) {
             return 'object';
         } else if (def.enum) {
             return 'enum';
@@ -32,37 +42,40 @@ export class SchemaFactory {
                  def: OpenApiSchema,
                  schemasTypes: HashMap<string, SchemaType>,
                  options: GenerationOptions): Schema {
-        if (def.type === 'object' || option(def.properties).exists(p => Object.keys(p).length > 0)) {
-            return SchemaObject.fromDefinition(name, def, schemasTypes, options);
+        if (def.type === 'object' ||
+            option(def.properties).exists(p => Object.keys(p).length > 0) ||
+            schemasTypes.get(name).contains('object')
+        ) {
+            return SchemaObject.fromDefinition(name, def, schemasTypes, options, HashMap.empty);
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
         } else if (def.type === 'string') {
             return Property.fromDefinition(name, {
-                ...def,
+                ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'boolean') {
             return Property.fromDefinition(name, {
-                ...def,
+                ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'integer') {
             return Property.fromDefinition(name, {
-                ...def,
+                ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'array') {
             return Property.fromDefinition(name, {
-                ...def,
+                ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else {
             return Property.fromDefinition(name, {
-                ...def,
+                ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
@@ -105,26 +118,70 @@ export class SchemaObject implements Schema {
     protected constructor(readonly name: string,
                           readonly title: string,
                           readonly type: string,
-                          readonly properties: Collection<Property>) {
+                          readonly properties: Collection<Property>,
+                          readonly parents: Collection<string>,
+                          readonly explicitlyRequiredProperties: HashSet<string>) {
+    }
+
+    get parentsString() {
+        return this.parents.nonEmpty ? ' extends ' + this.parents.map(n => NameUtils.normaliseClassname(n)).mkString(', ') : '';
+    }
+
+
+    static allSuperClassDefined(def: OpenApiSchema,
+                                schemasTypes: HashMap<string, SchemaType>,
+                                pool: HashSet<string>) {
+        const parents = option(def.allOf)
+            .map(x => Collection.from(x))
+            .filter(x => x.nonEmpty)
+            .getOrElseValue(Nil)
+            .flatMapOption(x => option(x['$ref'] as string))
+            .map(x => x.substring(SCHEMA_PREFIX.length))
+            .filter(p => schemasTypes.get(p).contains('object'))
+            .toSet;
+        return parents.removedAll(pool).isEmpty
     }
 
     static fromDefinition(name: string,
                           def: OpenApiSchema,
                           schemasTypes: HashMap<string, SchemaType>,
-                          options: GenerationOptions) {
+                          options: GenerationOptions,
+                          pool: HashMap<string, Schema>) {
+
+        const allOff = option(def.allOf).map(x => Collection.from(x)).filter(x => x.nonEmpty);
+        const parents = allOff.getOrElseValue(Nil)
+            .flatMapOption(x => option(x['$ref'] as string))
+            .map(x => x.substring(SCHEMA_PREFIX.length))
+            .filter(p => schemasTypes.get(p).contains('object'));
+
+        // explicitly required properties should also be collected from all parents
         const explicitlyRequired = option(def.required)
-            .map(arr => typeof arr === 'boolean' ? Nil : Collection.from(arr));
-        const properties = option(def.properties)
-            .map(props => Collection.from(Object.keys(props)))
+            .map(arr => typeof arr === 'boolean' ? Nil : Collection.from(arr))
             .getOrElseValue(Nil)
-            .map(propName => {
-                const property = Property.fromDefinition(propName, def.properties[propName], schemasTypes, options);
-                return property.copy({
-                    required: explicitlyRequired.exists(c => c.contains(propName)) ? true : property.required
-                });
-            }
-        );
-        return new SchemaObject(name, def.title, def.type, properties);
+            .appendedAll(parents.flatMap(p =>
+                pool.get(p)
+                    .map(o => (o as SchemaObject).explicitlyRequiredProperties)
+                    .getOrElseValue(HashSet.empty)
+                    .toCollection
+            ))
+            .toSet;
+
+
+        const properties = allOff.getOrElseValue(Collection.of(def))
+            .flatMap(subSchema => {
+                return option(subSchema['properties'])
+                    .map(props => Collection.from(Object.keys(props)))
+                    .getOrElseValue(Nil)
+                    .map(propName => {
+                            const property = Property.fromDefinition(propName, subSchema['properties'][propName], schemasTypes, options);
+                            return property.copy({
+                                required: explicitlyRequired.contains(propName) ? true : property.required
+                            });
+                        }
+                    );
+            })
+
+        return new SchemaObject(name, def.title, def.type, properties, parents, explicitlyRequired);
     }
 
     get normalName() {

@@ -1,9 +1,9 @@
 import {OpenApiProperty} from './openapi.js';
-import {Collection, HashMap, none, Option, option} from 'scats';
+import {Collection, HashMap, Nil, none, Option, option} from 'scats';
 import {GenerationOptions, Schema, SchemaType} from './schemas.js';
 import {NameUtils} from './name.utils.js';
 
-const SCHEMA_PREFIX = '#/components/schemas/';
+export const SCHEMA_PREFIX = '#/components/schemas/';
 
 export class Property implements Schema {
 
@@ -44,7 +44,7 @@ export class Property implements Schema {
                           schemaTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
         const referencesObject: boolean = option(definition.$ref)
-            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
+                .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
             // $ref cant have sublings. in case of description it should be wrapped in allOf:
             // https://github.com/nestjs/swagger/issues/2948#issuecomment-2440965892
             option(definition.allOf)
@@ -52,7 +52,7 @@ export class Property implements Schema {
                 .flatMap(allOf => option(allOf[0]))
                 .flatMap(schema => option(schema.$ref))
                 .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
-        
+
 
         const itemReferencesObject = option(definition.items)
             .flatMap(i => option(i.$ref))
@@ -95,7 +95,9 @@ export class Property implements Schema {
                                 option(oneOfItem.$ref)
                                     .map(ref => ref.substring(SCHEMA_PREFIX.length))
                                     .orElseValue(option(oneOfItem.type))
-                            ).mkString(' | ');
+                            )
+                            .map(tpe => this.toJsType(tpe))
+                            .mkString(' | ');
                     })
             )
             .getOrElseValue(definition.type);
@@ -160,28 +162,40 @@ export class Property implements Schema {
     }
 
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
-        switch (tpe) {
-            case 'boolean':
-                return 'boolean';
-            case 'number':
-                return 'number';
-            case 'integer':
-                return 'number';
-            case 'file':
-                return 'File';
-            case 'any':
-                return 'any';
-            case 'string':
-                if (format.contains('binary')) {
-                    return 'Blob | Buffer';
-                } else {
-                    return 'string';
+        return option(tpe)
+            .map(x => Collection.from(x.split('|')))
+            .getOrElseValue(Nil)
+            .map(x => x.trim())
+            .map(t => {
+                switch (t) {
+                    case 'boolean':
+                        return 'boolean';
+                    case 'number':
+                        return 'number';
+                    case 'integer':
+                        return 'number';
+                    case 'Object':
+                    case 'object':
+                        return 'object';
+                    case 'file':
+                        return 'File';
+                    case 'any':
+                        return 'any';
+                    case 'String':
+                    case 'string':
+                        if (format.contains('binary')) {
+                            return 'Blob | Buffer';
+                        } else {
+                            return 'string';
+                        }
+                    case 'array':
+                        return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
+                    default:
+                        return NameUtils.normaliseClassname(tpe);
                 }
-            case 'array':
-                return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
-            default:
-                return NameUtils.normaliseClassname(tpe);
-        }
+            })
+            .distinct.mkString(' | ');
+
     }
 
     get normalType() {

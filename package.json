@@ -23,6 +23,7 @@
   "homepage": "https://github.com/papirosko/swagger-code-gen#readme",
   "scripts": {
     "test:petstore": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
+    "gen-api:click": "node --loader ts-node/esm ./src/cli.mjs --url https://api.click.ru/V0/docs/openapi.json --includeTags user  --enableScats tmp/click.ts",
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",

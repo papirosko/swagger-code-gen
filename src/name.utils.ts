@@ -1,6 +1,7 @@
 export class NameUtils {
 
     static normaliseClassname(n: string): string {
+        if (!n) return '';
         let res = '';
         let needUpperCase = true; // first letter always uppercased
         for (let i = 0; i < n.length; i++) {

@@ -1,5 +1,5 @@
 <%_ if (schema.schemaType === 'object') { -%>
-export interface <%= schema.normalName %> {
+export interface <%= schema.normalName %><%= schema.parentsString%> {
     <%_ schema.properties.foreach(p => { -%>
     <%_ p.description.foreach(d => { -%>
     /**

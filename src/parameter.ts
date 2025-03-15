@@ -42,6 +42,9 @@ export class Parameter {
         let jsType: string;
         if (schema instanceof SchemaObject) {
             jsType = schema.type;
+            if (schema.type === 'integer') {
+                jsType = 'number';
+            }
         } else if (schema instanceof SchemaEnum) {
             if (schemas.containsKey(schema.name)) {
                 jsType = schema.name;

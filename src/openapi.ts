@@ -17,6 +17,7 @@ export interface OpenApiProperty {
 
 
 export interface OpenApiSchema {
+    readonly allOf?: Array<OpenApiProperty | OpenApiSchema>;
     readonly name: string;
     readonly title: string;
     readonly description?: string;
