@@ -150,7 +150,7 @@ export class SchemaObject implements Schema {
             .map(x => x.substring(SCHEMA_PREFIX.length))
             .filter(p => schemasTypes.get(p).contains('object'))
             .toSet;
-        return parents.removedAll(pool).isEmpty
+        return parents.removedAll(pool).isEmpty;
     }
 
     static fromDefinition(name: string,
@@ -190,7 +190,7 @@ export class SchemaObject implements Schema {
                             });
                         }
                     );
-            })
+            });
 
         return new SchemaObject(name, def.title, def.type, properties,
             parents.toMap(p => [p, pool.get(p).get as SchemaObject]),

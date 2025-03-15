@@ -1,4 +1,4 @@
-import {Collection, HashMap, mutable} from 'scats';
+import {Collection, HashMap, mutable, option} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 import {Property} from './property.js';
 import {OpenApiPaths} from './openapi.js';
@@ -17,7 +17,7 @@ export function resolveSchemas(json: any,
     const jsonSchemas = json.components.schemas;
     const schemasNames = Collection.from(Object.keys(jsonSchemas));
 
-    let pool: mutable.HashMap<string, Schema> = new mutable.HashMap();
+    const pool: mutable.HashMap<string, Schema> = new mutable.HashMap();
 
     // 1st pass - all enums and props
     pool.addAll(
@@ -67,7 +67,7 @@ export function resolveSchemas(json: any,
         );
         unprocessed = schemasNames
             .filter(s => !pool.containsKey(s) && schemasTypes.get(s).contains('object'));
-        let newSize = pool.size;
+        const newSize = pool.size;
         if (newSize <= currentSize) {
             throw new Error(`No superclass definitions were found for ${unprocessed.mkString(', ')}`);
         }
@@ -89,5 +89,15 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
         const included = options.includeTags.isEmpty || options.includeTags.intersect(m.tags).nonEmpty;
         const excluded = options.excludeTags.nonEmpty && options.excludeTags.intersect(m.tags).nonEmpty;
         return included && !excluded;
+    });
+}
+
+export function generateInPlace(paths: Collection<Method>,
+                                schemasTypes: HashMap<string, SchemaType>,
+                                options: GenerationOptions,
+                                pool: HashMap<string, Schema>) {
+    return paths.filter(m => option(m.response.inPlace).isDefined).map(m => {
+        console.log(`Generating inplace object for ${m.endpointName}: ${m.response.responseType}`);
+        return SchemaObject.fromDefinition(m.response.responseType, m.response.inPlace!, schemasTypes, options, pool);
     });
 }

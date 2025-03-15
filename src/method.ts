@@ -1,13 +1,17 @@
-import {OpenApiMethod} from './openapi.js';
+import {OpenApiMethod, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats';
-import {Property} from './property.js';
+import {Property, SCHEMA_PREFIX} from './property.js';
 import {Parameter} from './parameter.js';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
 import {NameUtils} from './name.utils.js';
 
 
 export interface ResponseDetails {
+    /**
+     * Used only to render correctly scats methods
+     */
     asProperty: Property;
+    inPlace?: OpenApiSchema;
     responseType: string;
     description?: string;
 }
@@ -48,6 +52,7 @@ export class Method {
 
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
+    readonly producesInPlaceObject: boolean;
 
     constructor(readonly path: string,
                 readonly method: string,
@@ -133,18 +138,45 @@ export class Method {
         this.response = mimeTypes.get('application/json')
             .orElseValue(mimeTypes.values.headOption)
             .filter(p => option(p.schema).isDefined)
-            .map(p => Property.fromDefinition('', p.schema, schemasTypes, options).copy({
-                nullable: false,
-                required: true
-            }))
-            .map(r => ({
-                asProperty: r,
-                responseType: r.jsType,
-                description: respDef.description
-            } as ResponseDetails))
+            .map(p => {
+                if (p.schema.type === 'object' && p.schema['properties'] && Object.keys(p.schema['properties']).length > 0) {
+
+                    const inPlaceObject = NameUtils.normaliseClassname(def.operationId + 'Response$' + method);
+
+                    const r = Property.fromDefinition(
+                        '',
+                        {
+                            ...p.schema,
+                            $ref: SCHEMA_PREFIX + inPlaceObject
+                        },
+                        schemasTypes.appended(inPlaceObject, 'object'),
+                        options
+                    ).copy({
+                        nullable: false,
+                        required: true
+                    });
+                    return {
+                        asProperty: r,
+                        responseType: inPlaceObject,
+                        description: respDef.description,
+                        inPlace: p.schema
+                    } as ResponseDetails;
+
+                } else {
+                    const r = Property.fromDefinition('', p.schema, schemasTypes, options).copy({
+                        nullable: false,
+                        required: true,
+                    });
+                    return {
+                        asProperty: r,
+                        responseType: r.jsType,
+                        description: respDef.description,
+                    } as ResponseDetails;
+                }
+            })
             .getOrElseValue(({
                 asProperty: Property.fromDefinition('UNKNOWN', {type: 'any'}, schemasTypes, options),
-                responseType: 'any'
+                responseType: 'any',
             }));
 
 
