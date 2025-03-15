@@ -1,6 +1,6 @@
 import {OpenApiProperty} from './openapi.js';
-import {Collection, HashMap, Nil, none, Option, option} from 'scats';
-import {GenerationOptions, Schema, SchemaType} from './schemas.js';
+import {Collection, HashMap, Nil, none, Option, option, some} from 'scats';
+import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
 import {NameUtils} from './name.utils.js';
 
 export const SCHEMA_PREFIX = '#/components/schemas/';
@@ -58,8 +58,7 @@ export class Property implements Schema {
             .flatMap(i => option(i.$ref))
             .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
 
-        const type = option(definition.$ref)
-            .map(ref => ref.substring(SCHEMA_PREFIX.length))
+        const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() =>
                 option(definition.allOf)
                     .map(x => Collection.from(x))
@@ -100,7 +99,15 @@ export class Property implements Schema {
                             .mkString(' | ');
                     })
             )
-            .getOrElseValue(definition.type);
+            .orElse(() => {
+                if (SchemaFactory.isEmptyObjectOrArray(definition)) {
+                    return some('object');
+                } else {
+                    return none;
+                }
+            })
+            .orElse(() => option(definition.type))
+            .getOrElseValue('any');
 
         const nullable = option(definition.nullable).contains(true) ||
             (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false)) ||

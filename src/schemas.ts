@@ -143,6 +143,7 @@ export class SchemaObject implements Schema {
                                 schemasTypes: HashMap<string, SchemaType>,
                                 pool: HashSet<string>) {
         const parents = option(def.allOf)
+            .orElse(() => option(def['$ref']).map(x => [{$ref: x} as OpenApiProperty]))
             .map(x => Collection.from(x))
             .filter(x => x.nonEmpty)
             .getOrElseValue(Nil)
@@ -159,7 +160,9 @@ export class SchemaObject implements Schema {
                           options: GenerationOptions,
                           pool: HashMap<string, Schema>) {
 
-        const allOff = option(def.allOf).map(x => Collection.from(x)).filter(x => x.nonEmpty);
+        const allOff = option(def.allOf)
+            .orElse(() => option(def['$ref']).map(x => [{$ref: x} as OpenApiProperty]))
+            .map(x => Collection.from(x)).filter(x => x.nonEmpty);
         const parents = allOff.getOrElseValue(Nil)
             .flatMapOption(x => option(x['$ref'] as string))
             .map(x => x.substring(SCHEMA_PREFIX.length))

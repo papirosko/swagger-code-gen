@@ -45,7 +45,7 @@ export async function main(url: string,
         .then(async (json: any) => {
             const schemasTypes = resolveSchemasTypes(json);
             const schemas = resolveSchemas(json, schemasTypes, options);
-            const paths: Collection<Method> = resolvePaths(json, schemasTypes, options);
+            const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, schemas);
             const inplace = generateInPlace(paths, schemasTypes, options, schemas);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 

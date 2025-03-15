@@ -1,30 +1,87 @@
 import {Collection, HashMap, mutable, option} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
-import {Property} from './property.js';
+import {Property, SCHEMA_PREFIX} from './property.js';
 import {OpenApiPaths} from './openapi.js';
-import {Method} from './method.js';
+import {Method, supportedBodyMimeTypes} from './method.js';
 
 export function resolveSchemasTypes(json: any): HashMap<string, SchemaType> {
     const jsonSchemas = json.components.schemas;
     const schemasNames = Collection.from(Object.keys(jsonSchemas));
-    return schemasNames.toMap(name => [name, SchemaFactory.resolveSchemaType(jsonSchemas[name])]);
+    const sharedBodies = Collection.from(Object.keys(json.components.requestBodies))
+        .toMap(name => {
+            const sharedBodyDef = json.components.requestBodies[name];
+            const mimeTypes = Collection.from(Object.keys(sharedBodyDef['content']));
+            const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
+            if (sharedBodyDef['content'][supportedMimeTypes.head]['schema']['$ref']) {
+                return [name + '$RequestBody', 'object' as SchemaType];
+            } else {
+                // in case of anyOf we can't create single interface, extending all variants, because properties
+                // may not match. instead we treat this case specially, making referenced objects as single type
+                // as union.
+                // e.g. in case of
+                //             "Users.Payers.Payer": {
+                //                 "required": true,
+                //                 "content": {
+                //                     "application/json": {
+                //                         "schema": {
+                //                             "anyOf": [
+                //                                 {
+                //                                     "$ref": "#/components/schemas/Users.Payers.Business"
+                //                                 },
+                //                                 {
+                //                                     "$ref": "#/components/schemas/Users.Payers.Individual"
+                //                                 }
+                //                             ]
+                //                         }
+                //                     }
+                //                 }
+                //             }
+                // we will generate type `Users.Payers.Business | Users.Payers.Individual`
+                return [name + '$RequestBody', 'property' as SchemaType];
+            }
+        });
+    return schemasNames.toMap(name => [name, SchemaFactory.resolveSchemaType(jsonSchemas[name])])
+        .appendedAll(sharedBodies);
 }
 
 export function resolveSchemas(json: any,
                                schemasTypes: HashMap<string, SchemaType>,
                                options: GenerationOptions): HashMap<string, Schema> {
 
-    const jsonSchemas = json.components.schemas;
-    const schemasNames = Collection.from(Object.keys(jsonSchemas));
+    const schemas = Collection.from(Object.keys(json.components.schemas))
+        .toMap(schemaName => [schemaName, json.components.schemas[schemaName]])
+        .appendedAll(
+            Collection.from(Object.keys(json.components.requestBodies))
+                .filter(rb => option(json.components.requestBodies[rb]['content']).isDefined)
+                .toMap(rb => {
+                    const sharedBodyDef = json.components.requestBodies[rb];
+                    const mimeTypes = Collection.from(Object.keys(sharedBodyDef['content']));
+                    const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
+
+                    if (sharedBodyDef['content'][supportedMimeTypes.head]['schema']['$ref']) {
+                        return [rb + '$RequestBody', sharedBodyDef['content'][supportedMimeTypes.head]['schema']];
+                    } else if (sharedBodyDef['content'][supportedMimeTypes.head]['schema']['anyOf']) {
+                        // in case of anyOf
+                        return [rb + '$RequestBody', {
+                            type: Collection.from(sharedBodyDef['content'][supportedMimeTypes.head]['schema']['anyOf'])
+                                .map(x => x['$ref'].toString().substring(SCHEMA_PREFIX.length)).mkString(' | ')
+                        }];
+                    } else {
+                        return [rb + '$RequestBody', {
+                            type: 'any'
+                        }];
+                    }
+                })
+        );
 
     const pool: mutable.HashMap<string, Schema> = new mutable.HashMap();
 
     // 1st pass - all enums and props
     pool.addAll(
-        schemasNames
+        schemas.keySet
             .filter(s => schemasTypes.get(s).contains('enum') || schemasTypes.get(s).contains('property'))
             .toMap<string, Schema | Property>(name =>
-                [name, SchemaFactory.build(name, jsonSchemas[name], schemasTypes, options)]
+                [name, SchemaFactory.build(name, schemas.get(name).getOrElseThrow(() => new Error(`No schema for ${name}`)), schemasTypes, options)]
             )
     );
 
@@ -41,31 +98,40 @@ export function resolveSchemas(json: any,
      * "Errors.HttpError": [],
      * "SuccessEmpty": [],
      * ```
-      */
+     */
     const emptyArrayToObj = (x: any) => SchemaFactory.isEmptyObjectOrArray(x) ? {} : x;
 
     // 2nd pass - all objects without parents
     pool.addAll(
-        schemasNames
+        schemas.keySet
             .filter(s => schemasTypes.get(s).contains('object') &&
-                SchemaObject.allSuperClassDefined(jsonSchemas[s], schemasTypes, pool.keySet)
+                SchemaObject.allSuperClassDefined(schemas.get(s)
+                    .getOrElseThrow(() => new Error(`No schema for ${s}`)), schemasTypes, pool.keySet)
             )
-            .toMap<string, Schema | Property>(name =>
-                [name, SchemaObject.fromDefinition(name, emptyArrayToObj(jsonSchemas[name]), schemasTypes, options, pool.toImmutable)]
+            .toMap<string, Schema | Property>(name => {
+                    const schema = schemas.get(name).getOrElseThrow(() => new Error(`No schema for ${name}`));
+                    return [name, SchemaObject.fromDefinition(
+                        name,
+                        emptyArrayToObj(schema),
+                        schemasTypes,
+                        options,
+                        pool.toImmutable
+                    )];
+                }
             )
     );
 
     let currentSize = pool.size;
-    let unprocessed = schemasNames
+    let unprocessed = schemas.keySet
         .filter(s => !pool.containsKey(s) && schemasTypes.get(s).contains('object'));
     while (unprocessed.nonEmpty) {
         pool.addAll(
-            unprocessed.filter(s => SchemaObject.allSuperClassDefined(emptyArrayToObj(jsonSchemas[s]), schemasTypes, pool.keySet))
+            unprocessed.filter(s => SchemaObject.allSuperClassDefined(emptyArrayToObj(schemas.get(s).get), schemasTypes, pool.keySet))
                 .toMap<string, Schema | Property>(name =>
-                    [name, SchemaObject.fromDefinition(name, emptyArrayToObj(jsonSchemas[name]), schemasTypes, options, pool.toImmutable)]
+                    [name, SchemaObject.fromDefinition(name, emptyArrayToObj(schemas.get(name).get), schemasTypes, options, pool.toImmutable)]
                 )
         );
-        unprocessed = schemasNames
+        unprocessed = schemas.keySet
             .filter(s => !pool.containsKey(s) && schemasTypes.get(s).contains('object'));
         const newSize = pool.size;
         if (newSize <= currentSize) {
@@ -78,12 +144,13 @@ export function resolveSchemas(json: any,
 }
 
 
-export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType>, options: GenerationOptions) {
+export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType>, options: GenerationOptions,
+                             pool: HashMap<string, Schema>) {
     const jsonSchemas = json.paths as OpenApiPaths;
     return Collection.from(Object.keys(jsonSchemas)).flatMap(path => {
         const methods = jsonSchemas[path];
         return Collection.from(Object.keys(methods)).map(methodName =>
-            new Method(path, methodName, methods[methodName], schemasTypes, options)
+            new Method(path, methodName, methods[methodName], schemasTypes, options, pool)
         );
     }).filter(m => {
         const included = options.includeTags.isEmpty || options.includeTags.intersect(m.tags).nonEmpty;
@@ -96,8 +163,15 @@ export function generateInPlace(paths: Collection<Method>,
                                 schemasTypes: HashMap<string, SchemaType>,
                                 options: GenerationOptions,
                                 pool: HashMap<string, Schema>) {
-    return paths.filter(m => option(m.response.inPlace).isDefined).map(m => {
-        console.log(`Generating inplace object for ${m.endpointName}: ${m.response.responseType}`);
-        return SchemaObject.fromDefinition(m.response.responseType, m.response.inPlace!, schemasTypes, options, pool);
-    });
+    return paths.filter(m => option(m.response.inPlace).isDefined)
+        .map(m => {
+            return SchemaObject.fromDefinition(m.response.responseType, m.response.inPlace!, schemasTypes, options, pool);
+        }).appendedAll(
+            paths.flatMap(m => m.body)
+                .filter(b => option(b.inPlace).isDefined)
+                .map(m => {
+                    console.log(`Generating inplace body: ${m.inPlaceClassname}`);
+                    return SchemaObject.fromDefinition(m.inPlaceClassname, m.inPlace!, schemasTypes, options, pool);
+                })
+        );
 }

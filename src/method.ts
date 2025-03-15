@@ -1,9 +1,12 @@
-import {OpenApiMethod, OpenApiSchema} from './openapi.js';
+import {OpenApiMethod, OpenApiProperty, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {Parameter} from './parameter.js';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
 import {NameUtils} from './name.utils.js';
+
+
+export const SHARED_BODIES_PREFIX = '#/components/requestBodies/';
 
 
 export interface ResponseDetails {
@@ -30,10 +33,12 @@ export interface RequestBody {
     body: Schema;
     mimeType: string;
     suffix: string;
+    inPlace?: OpenApiSchema;
+    inPlaceClassname?: string;
 }
 
 
-const supportedBodyMimeTypes: HashMap<string, string> = HashMap.of(
+export const supportedBodyMimeTypes: HashMap<string, string> = HashMap.of(
     ['application/json', 'Json'],
     ['application/x-www-form-urlencoded', 'Form'],
     ['multipart/form-data', 'File'],
@@ -47,18 +52,18 @@ export class Method {
     readonly description?: string;
     readonly response: ResponseDetails;
     readonly parameters: Collection<Parameter>;
-    private readonly body: Collection<RequestBody>;
+    readonly body: Collection<RequestBody>;
     readonly bodyDescription: Option<string>;
 
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
-    readonly producesInPlaceObject: boolean;
 
     constructor(readonly path: string,
                 readonly method: string,
                 def: OpenApiMethod,
                 schemasTypes: HashMap<string, SchemaType>,
-                options: GenerationOptions) {
+                options: GenerationOptions,
+                pool: HashMap<string, Schema>) {
         this.tags = HashSet.from(option(def.tags).getOrElseValue([]));
         this.summary = def.summary;
         this.description = def.description;
@@ -88,14 +93,77 @@ export class Method {
         });
 
         this.body = option(def.requestBody)
-            .flatMap(body => option(body.content))
+            .flatMap(body =>
+                option(body.content)
+                    .orElse(() => {
+                        // reference to shared body
+                        return option(body).filter(x => {
+                            const sharedRef = option(x['$ref']).exists(ref => ref.toString().startsWith(SHARED_BODIES_PREFIX));
+                            return sharedRef;
+                        })
+                            .map(x => {
+                                const referenced = pool.get(x['$ref'].substring(SHARED_BODIES_PREFIX.length) + '$RequestBody');
+                                if (referenced.exists(o => o instanceof Property)) {
+                                    return {
+                                        'application/json': {
+                                            'schema': {
+                                                type: (referenced.get as Property).type
+                                            } as unknown as OpenApiSchema,
+                                        }
+                                    };
+
+                                } else {
+                                    return {
+                                        'application/json': {
+                                            'schema': {
+                                                $ref: x['$ref'] + '$RequestBody'
+                                            } as unknown as OpenApiSchema,
+                                        }
+                                    };
+                                }
+                            });
+                    })
+            )
             .map(body => {
                 const bodyRequired = option(def.requestBody.required).contains(true);
                 const mimeTypes = Collection.from(Object.keys(body));
                 const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
                 return supportedMimeTypes.map(mt => {
                     const bodySchemaDef = body[mt].schema;
-                    let res = SchemaFactory.build('body', bodySchemaDef, schemasTypes, options);
+                    let res: Schema;
+                    let inPlaceClassname = null;
+                    if (SchemaFactory.isEmptyObjectOrArray(bodySchemaDef)) {
+                        res = Property.fromDefinition('body', {
+                            ...bodySchemaDef as OpenApiProperty,
+                            required: bodyRequired,
+                            type: 'object'
+                        }, schemasTypes, options);
+                    } else if (bodySchemaDef['$ref']) {
+                        const ref = bodySchemaDef['$ref'].toString();
+                        res = Property.fromDefinition('body', {
+                            ...bodySchemaDef as OpenApiProperty,
+                            $ref: ref.startsWith(SHARED_BODIES_PREFIX) ? SCHEMA_PREFIX + ref.substring(SHARED_BODIES_PREFIX.length, ref.length) : ref,
+                            required: bodyRequired
+                        }, schemasTypes, options);
+                    } else if (bodySchemaDef['type']) {
+                        res = Property.fromDefinition('body', {
+                            type: bodySchemaDef['type'],
+                            required: bodyRequired
+                        }, schemasTypes, options);
+                    } else {
+                        // inplace object
+                        inPlaceClassname = NameUtils.normaliseClassname(def.operationId + 'Body$' + method);
+                        res = Property.fromDefinition(
+                            'body',
+                            {
+                                ...bodySchemaDef as OpenApiProperty,
+                                $ref: SCHEMA_PREFIX + inPlaceClassname
+                            },
+                            schemasTypes.appended(inPlaceClassname, 'object'),
+                            options
+                        );
+                    }
+
                     if (res.schemaType === 'property') {
                         // '--referencedObjectsNullableByDefault' flag makes body to be nullable by default, which
                         // may be wrong. We make nullable value true only if it is explicitly requested.
@@ -108,7 +176,9 @@ export class Method {
                     return {
                         body: res,
                         mimeType: mt,
-                        suffix: supportedMimeTypes.size > 1 ? supportedBodyMimeTypes.get(mt).getOrElseValue(mt) : ''
+                        suffix: supportedMimeTypes.size > 1 ? supportedBodyMimeTypes.get(mt).getOrElseValue(mt) : '',
+                        inPlace: inPlaceClassname ? bodySchemaDef : undefined,
+                        inPlaceClassname: inPlaceClassname,
                     } as RequestBody;
                 });
             })
