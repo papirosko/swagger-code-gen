@@ -2,7 +2,7 @@
 export class <%= schema.normalName %>Dto {
 
     /**
-    <%_ schema.properties.foreach(p => { -%>
+    <%_ schema.propsIncludingInherited().foreach(p => { -%>
      * @param <%= p.name %> <%- p.description.getOrElseValue('') %>
     <%_ }); -%>
      */

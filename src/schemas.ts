@@ -119,14 +119,25 @@ export class SchemaObject implements Schema {
                           readonly title: string,
                           readonly type: string,
                           readonly properties: Collection<Property>,
-                          readonly parents: Collection<string>,
+                          readonly parents: HashMap<string, SchemaObject>,
                           readonly explicitlyRequiredProperties: HashSet<string>) {
     }
 
     get parentsString() {
-        return this.parents.nonEmpty ? ' extends ' + this.parents.map(n => NameUtils.normaliseClassname(n)).mkString(', ') : '';
+        return this.parents.nonEmpty ? ' extends ' + this.parents.keySet.map(n => NameUtils.normaliseClassname(n)).mkString(', ') : '';
     }
 
+    propsIncludingInherited(): Collection<Property> {
+        const pendingParents = this.parents.values.toArray;
+        const props = this.properties.toBuffer;
+        const propNames = props.map(p => p.name).toSet.toMutable;
+        while (pendingParents.length > 0) {
+            const parent = pendingParents.shift();
+            props.appendAll(parent.properties.filter(parentProp => !propNames.contains(parentProp.name)));
+            parent.parents.values.foreach(pp => pendingParents.push(pp));
+        }
+        return props.toCollection;
+    }
 
     static allSuperClassDefined(def: OpenApiSchema,
                                 schemasTypes: HashMap<string, SchemaType>,
@@ -181,7 +192,9 @@ export class SchemaObject implements Schema {
                     );
             })
 
-        return new SchemaObject(name, def.title, def.type, properties, parents, explicitlyRequired);
+        return new SchemaObject(name, def.title, def.type, properties,
+            parents.toMap(p => [p, pool.get(p).get as SchemaObject]),
+            explicitlyRequired);
     }
 
     get normalName() {
