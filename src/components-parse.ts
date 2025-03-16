@@ -1,4 +1,4 @@
-import {Collection, HashMap, mutable, option} from 'scats';
+import {Collection, HashMap, mutable, Nil, option} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {OpenApiPaths} from './openapi.js';
@@ -7,7 +7,9 @@ import {Method, supportedBodyMimeTypes} from './method.js';
 export function resolveSchemasTypes(json: any): HashMap<string, SchemaType> {
     const jsonSchemas = json.components.schemas;
     const schemasNames = Collection.from(Object.keys(jsonSchemas));
-    const sharedBodies = Collection.from(Object.keys(json.components.requestBodies))
+    const sharedBodies = option(json?.components?.requestBodies)
+        .map(x => Collection.from(Object.keys(x)))
+        .getOrElseValue(Nil)
         .toMap(name => {
             const sharedBodyDef = json.components.requestBodies[name];
             const mimeTypes = Collection.from(Object.keys(sharedBodyDef['content']));
@@ -51,7 +53,9 @@ export function resolveSchemas(json: any,
     const schemas = Collection.from(Object.keys(json.components.schemas))
         .toMap(schemaName => [schemaName, json.components.schemas[schemaName]])
         .appendedAll(
-            Collection.from(Object.keys(json.components.requestBodies))
+            option(json?.components?.requestBodies)
+                .map(x => Collection.from(Object.keys(x)))
+                .getOrElseValue(Nil)
                 .filter(rb => option(json.components.requestBodies[rb]['content']).isDefined)
                 .toMap(rb => {
                     const sharedBodyDef = json.components.requestBodies[rb];
