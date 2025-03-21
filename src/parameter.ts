@@ -31,7 +31,7 @@ export class Parameter {
         let defaultValue: Option<string | number> = none;
         const schema = def.schema ?
             SchemaFactory.build(def.name, def.schema, schemas, options) :
-            Property.fromDefinition(name, {
+            Property.fromDefinition('', name, {
                     ...def,
                     type: def['type'], // swagger support
                     required: option(def.required).filter(x => typeof x === 'boolean')

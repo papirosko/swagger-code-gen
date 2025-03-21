@@ -133,20 +133,20 @@ export class Method {
                     let res: Schema;
                     let inPlaceClassname = null;
                     if (SchemaFactory.isEmptyObjectOrArray(bodySchemaDef)) {
-                        res = Property.fromDefinition('body', {
+                        res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,
                             required: bodyRequired,
                             type: 'object'
                         }, schemasTypes, options);
                     } else if (bodySchemaDef['$ref']) {
                         const ref = bodySchemaDef['$ref'].toString();
-                        res = Property.fromDefinition('body', {
+                        res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,
                             $ref: ref.startsWith(SHARED_BODIES_PREFIX) ? SCHEMA_PREFIX + ref.substring(SHARED_BODIES_PREFIX.length, ref.length) : ref,
                             required: bodyRequired
                         }, schemasTypes, options);
                     } else if (bodySchemaDef['type']) {
-                        res = Property.fromDefinition('body', {
+                        res = Property.fromDefinition('', 'body', {
                             type: bodySchemaDef['type'],
                             required: bodyRequired
                         }, schemasTypes, options);
@@ -154,6 +154,7 @@ export class Method {
                         // inplace object
                         inPlaceClassname = NameUtils.normaliseClassname(def.operationId + 'Body$' + method);
                         res = Property.fromDefinition(
+                            inPlaceClassname,
                             'body',
                             {
                                 ...bodySchemaDef as OpenApiProperty,
@@ -214,6 +215,7 @@ export class Method {
                     const inPlaceObject = NameUtils.normaliseClassname(def.operationId + 'Response$' + method);
 
                     const r = Property.fromDefinition(
+                        inPlaceObject,
                         '',
                         {
                             ...p.schema,
@@ -233,7 +235,7 @@ export class Method {
                     } as ResponseDetails;
 
                 } else {
-                    const r = Property.fromDefinition('', p.schema, schemasTypes, options).copy({
+                    const r = Property.fromDefinition('', '', p.schema, schemasTypes, options).copy({
                         nullable: false,
                         required: true,
                     });
@@ -245,7 +247,7 @@ export class Method {
                 }
             })
             .getOrElseValue(({
-                asProperty: Property.fromDefinition('UNKNOWN', {type: 'any'}, schemasTypes, options),
+                asProperty: Property.fromDefinition('', 'UNKNOWN', {type: 'any'}, schemasTypes, options),
                 responseType: 'any',
             }));
 

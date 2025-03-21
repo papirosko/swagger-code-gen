@@ -50,31 +50,31 @@ export class SchemaFactory {
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
         } else if (def.type === 'string') {
-            return Property.fromDefinition(name, {
+            return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'boolean') {
-            return Property.fromDefinition(name, {
+            return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'integer') {
-            return Property.fromDefinition(name, {
+            return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else if (def.type === 'array') {
-            return Property.fromDefinition(name, {
+            return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
         } else {
-            return Property.fromDefinition(name, {
+            return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
@@ -187,7 +187,7 @@ export class SchemaObject implements Schema {
                     .map(props => Collection.from(Object.keys(props)))
                     .getOrElseValue(Nil)
                     .map(propName => {
-                            const property = Property.fromDefinition(propName, subSchema['properties'][propName], schemasTypes, options);
+                            const property = Property.fromDefinition(name, propName, subSchema['properties'][propName], schemasTypes, options);
                             return property.copy({
                                 required: explicitlyRequired.contains(propName) ? true : property.required
                             });

@@ -1,4 +1,4 @@
-import {OpenApiProperty} from './openapi.js';
+import {OpenApiProperty, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, Nil, none, Option, option, some} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaType} from './schemas.js';
 import {NameUtils} from './name.utils.js';
@@ -19,7 +19,8 @@ export class Property implements Schema {
                 readonly items: string,
                 readonly referencesObject: boolean,
                 readonly itemReferencesObject: boolean,
-                readonly enumValues: Option<Collection<string>>) {
+                readonly enumValues: Option<Collection<string>>,
+                readonly inPlace: Option<OpenApiSchema>) {
     }
 
 
@@ -36,10 +37,12 @@ export class Property implements Schema {
             option(p.referencesObject).getOrElseValue(this.referencesObject),
             option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
             option(p.enumValues).getOrElseValue(this.enumValues),
+            option(p.inPlace).getOrElseValue(this.inPlace),
         );
     }
 
-    static fromDefinition(name: string,
+    static fromDefinition(parentClassname: string,
+                          name: string,
                           definition: OpenApiProperty,
                           schemaTypes: HashMap<string, SchemaType>,
                           options: GenerationOptions) {
@@ -58,7 +61,17 @@ export class Property implements Schema {
             .flatMap(i => option(i.$ref))
             .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
 
+        let inplace = none;
         const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
+            .orElse(() => {
+                if (definition.type === 'object' && option(definition.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0) {
+                    // inplace object
+                    inplace = some(definition);
+                    return some(parentClassname + '$' + name);
+                } else {
+                    return none;
+                }
+            })
             .orElse(() =>
                 option(definition.allOf)
                     .map(x => Collection.from(x))
@@ -141,7 +154,7 @@ export class Property implements Schema {
         const enumValues = option(definition.enum).map(x => Collection.from(x));
 
         return new Property(name, type, option(definition.format), description, null, nullable, required,
-            items, referencesObject, itemReferencesObject, enumValues);
+            items, referencesObject, itemReferencesObject, enumValues, inplace);
     }
 
 
