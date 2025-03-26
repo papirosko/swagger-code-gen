@@ -15,7 +15,7 @@ export interface <%= schema.normalName %><%= schema.parentsString%> {
  * <%= d %>
  */
 <%_ }); -%>
-export enum <%= schema.name %> {
+export enum <%= schema.normalName %> {
     <%_ schema.values.foreach(p => { -%>
     <%= p %> = '<%= p %>',
     <%_ }); -%>

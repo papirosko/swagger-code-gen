@@ -108,6 +108,11 @@ export class SchemaEnum implements Schema {
             option(def.enum).map(Collection.from).getOrElseValue(Nil)
         );
     }
+
+
+    get normalName() {
+        return NameUtils.normaliseClassname(this.name);
+    }
 }
 
 
