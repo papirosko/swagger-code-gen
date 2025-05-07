@@ -188,10 +188,11 @@ export class Property implements Schema {
             .map(x => x.trim())
             .map(t => {
                 switch (t) {
+                    case 'Boolean':
                     case 'boolean':
                         return 'boolean';
+                    case 'Number':
                     case 'number':
-                        return 'number';
                     case 'integer':
                         return 'number';
                     case 'Object':
