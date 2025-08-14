@@ -6,14 +6,18 @@ export class NameUtils {
         let needUpperCase = true; // first letter always uppercased
         for (let i = 0; i < n.length; i++) {
             const c = n[i];
-            if (c === '.' || c === '-') {
+            let toAppend = c;
+            if (c === '.' || c === '-' || c === '/') {
                 needUpperCase = true;
+                toAppend = '';
             } else if (needUpperCase) {
-                    res += c.toUpperCase();
-                    needUpperCase = false;
-                } else {
-                    res += c;
-                }
+                toAppend = c.toUpperCase();
+                needUpperCase = false;
+            }
+
+            res += toAppend;
+
+
         }
         return res;
     }
