@@ -31,6 +31,8 @@ export class NameUtils {
         }
     }
 
+
+
     static normalisePropertyName(n: string): string {
         return n.replace(/[.-]/g, '_');
     }
