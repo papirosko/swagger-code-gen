@@ -58,8 +58,11 @@ export class Property implements Schema {
 
 
         const itemReferencesObject = option(definition.items)
-            .flatMap(i => option(i.$ref))
-            .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object'));
+                .flatMap(i => option(i.$ref))
+                .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
+            option(definition.items).exists(i =>
+                option(i.type).contains('object') &&
+                option(i.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0);
 
         let inplace = none;
         const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
@@ -136,6 +139,14 @@ export class Property implements Schema {
 
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
+            .orElse(() => {
+                if (definition.type === 'array' && option(definition.items).exists(i => i.type === 'object')) {
+                    inplace = some(definition.items);
+                    return some(parentClassname + '$' + name);
+                } else {
+                    return none;
+                }
+            })
             .orElseValue(option(definition.items?.type))
             .orElse(() =>
                 option(definition.items?.oneOf)
@@ -183,7 +194,7 @@ export class Property implements Schema {
 
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         return option(tpe)
-            .map(x => Collection.from(x.split('|')))
+            .map(x => Array.isArray(x) ? Collection.from(x) : Collection.from(x.split('|')))
             .getOrElseValue(Nil)
             .map(x => x.trim())
             .map(t => {
@@ -202,6 +213,8 @@ export class Property implements Schema {
                         return 'File';
                     case 'any':
                         return 'any';
+                    case 'null':
+                        return 'null';
                     case 'String':
                     case 'string':
                         if (format.contains('binary')) {
@@ -221,6 +234,11 @@ export class Property implements Schema {
 
     get normalType() {
         return NameUtils.normaliseClassname(this.type);
+    }
+
+
+    get normalisedName() {
+        return NameUtils.normalisePropertyName(this.name);
     }
 
     /**

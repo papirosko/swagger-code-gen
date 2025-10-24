@@ -6,7 +6,7 @@ export interface <%= schema.normalName %><%= schema.parentsString%> {
      * <%= d %>
      */
     <%_ }); -%>
-    readonly <%= p.name %><%= !p.required ? '?' : '' %>: <%- p.jsType %>;
+    readonly '<%= p.name %>'<%= !p.required ? '?' : '' %>: <%- p.jsType %>;
     <%_ }); -%>
 }
 <%_ } if (schema.schemaType === 'enum') { -%>

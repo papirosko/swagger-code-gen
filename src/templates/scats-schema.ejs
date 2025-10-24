@@ -8,7 +8,7 @@ export class <%= schema.normalName %>Dto {
      */
     constructor(
         <%_ schema.properties.foreach(p => { -%>
-        readonly <%= p.name %>: <%- p.scatsWrapperType %>,
+        readonly <%= p.normalisedName %>: <%- p.scatsWrapperType %>,
         <%_ }); -%>
     ) {}
 
@@ -18,17 +18,17 @@ export class <%= schema.normalName %>Dto {
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
             <%_ if (p.required && !p.nullable) { _%>
-            <%- p.scatsWrapperType %>.fromJson(json.<%= p.name %>),
+            <%- p.scatsWrapperType %>.fromJson(json['<%= p.name %>']),
             <%_ } else { _%>
-            option(json.<%= p.name %>).map(_ => <%- p.normalType %>Dto.fromJson(_)),
+            option(json['<%= p.name %>']).map(_ => <%- p.normalType %>Dto.fromJson(_)),
             <%_ } _%>
             <%_ } else if (p.isArray) { _%>
-            Collection.from(option(json.<%= p.name %>).getOrElseValue([]))
+            Collection.from(option(json['<%= p.name %>']).getOrElseValue([]))
                 <% if (p.itemReferencesObject) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>,
             <%_ } else if (p.required && !p.nullable) { _%>
             json.<%= p.name %>,
             <%_ } else { _%>
-            option(json.<%= p.name %>),
+            option(json['<%= p.name %>']),
             <%_ } _%>
             <%_ }); _%>
         );
@@ -37,7 +37,7 @@ export class <%= schema.normalName %>Dto {
     copy(fields: Partial<<%= schema.normalName %>Dto>): <%= schema.normalName %>Dto {
         return new <%= schema.normalName %>Dto(
         <%_ schema.properties.foreach(p => { -%>
-            option(fields.<%= p.name %>).getOrElseValue(this.<%= p.name %>),
+            option(fields.<%= p.normalisedName %>).getOrElseValue(this.<%= p.normalisedName %>),
         <%_ });  -%>
         );
     }
@@ -47,18 +47,18 @@ export class <%= schema.normalName %>Dto {
             <%_ schema.properties.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
             <%_ if (p.required && !p.nullable) { _%>
-            <%= p.name %>: this.<%= p.name %>.toJson,
+            '<%= p.name %>': this.<%= p.normalisedName %>.toJson,
             <%_ } else { _%>
-            <%= p.name %>: this.<%= p.name %>.map(_ => _.toJson).orUndefined,
+            '<%= p.name %>': this.<%= p.normalisedName %>.map(_ => _.toJson).orUndefined,
             <%_ } _%>
             <%_ } else if (p.isArray) { _%>
-            <%= p.name %>: this.<%= p.name %>
+            '<%= p.name %>': this.<%= p.normalisedName %>
                 <% if (p.itemReferencesObject) { _%>.map(_ => _.toJson)<%_ } _%>
                 .toArray,
             <%_ } else if (p.required && !p.nullable) { _%>
-            <%= p.name %>: this.<%= p.name %>,
+            '<%= p.name %>': this.<%= p.normalisedName %>,
             <%_ } else { _%>
-            <%= p.name %>: this.<%= p.name %>.orUndefined,
+            '<%= p.name %>': this.<%= p.normalisedName %>.orUndefined,
             <%_ } _%>
             <%_ }); _%>
         };

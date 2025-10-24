@@ -167,17 +167,33 @@ export function generateInPlace(paths: Collection<Method>,
                                 schemasTypes: HashMap<string, SchemaType>,
                                 options: GenerationOptions,
                                 pool: HashMap<string, Schema>) {
-    const res =  new mutable.ArrayBuffer<SchemaObject>();
+
+    const collectInplaceFromProperty = (p: Property) => {
+        if (p.inPlace.isDefined) {
+            return Collection.of(SchemaObject.fromDefinition(p.items, p.inPlace.get, schemasTypes, options, pool));
+        } else {
+            return Nil;
+        }
+    };
+
+    const res = new mutable.ArrayBuffer<SchemaObject>();
     res.appendAll(paths.filter(m => option(m.response.inPlace).isDefined)
         .map(m => {
             return SchemaObject.fromDefinition(m.response.responseType, m.response.inPlace!, schemasTypes, options, pool);
-        }).appendedAll(
+        })
+        .appendedAll(
             paths.flatMap(m => m.body)
                 .filter(b => option(b.inPlace).isDefined)
                 .map(m => {
                     console.log(`Generating inplace body: ${m.inPlaceClassname}`);
                     return SchemaObject.fromDefinition(m.inPlaceClassname, m.inPlace!, schemasTypes, options, pool);
                 })
+        )
+        .appendedAll(
+            pool.values.filter(s => s.schemaType === 'object')
+                .map(s => s as SchemaObject)
+                .flatMap(s => s.properties)
+                .flatMap(p => collectInplaceFromProperty(p))
         )
     );
 
