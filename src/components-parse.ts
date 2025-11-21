@@ -170,7 +170,11 @@ export function generateInPlace(paths: Collection<Method>,
 
     const collectInplaceFromProperty = (p: Property) => {
         if (p.inPlace.isDefined) {
-            return Collection.of(SchemaObject.fromDefinition(p.items, p.inPlace.get, schemasTypes, options, pool));
+            if (p.type === 'array') {
+                return Collection.of(SchemaObject.fromDefinition(p.items, p.inPlace.get, schemasTypes, options, pool));
+            } else {
+                return Collection.of(SchemaObject.fromDefinition(p.type, p.inPlace.get, schemasTypes, options, pool));
+            }
         } else {
             return Nil;
         }

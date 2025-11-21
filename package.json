@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "type": "module",
   "bin": {
     "generate-client": "./dist/cli.mjs"
@@ -23,6 +23,7 @@
   "homepage": "https://github.com/papirosko/swagger-code-gen#readme",
   "scripts": {
     "test:petstore": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
+    "test:video": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url http://172.27.1.215:12347/openapi.json tmp/web-processing.ts",
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
