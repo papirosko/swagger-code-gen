@@ -170,11 +170,8 @@ export function generateInPlace(paths: Collection<Method>,
 
     const collectInplaceFromProperty = (p: Property) => {
         if (p.inPlace.isDefined) {
-            if (p.type === 'array') {
-                return Collection.of(SchemaObject.fromDefinition(p.items, p.inPlace.get, schemasTypes, options, pool));
-            } else {
-                return Collection.of(SchemaObject.fromDefinition(p.type, p.inPlace.get, schemasTypes, options, pool));
-            }
+            const targetType = p.isArray ? p.items : p.type;
+            return Collection.of(SchemaObject.fromDefinition(targetType, p.inPlace.get, schemasTypes, options, pool));
         } else {
             return Nil;
         }
@@ -204,7 +201,8 @@ export function generateInPlace(paths: Collection<Method>,
     let pending = res.toCollection.flatMap(s => s.properties).filter(p => p.inPlace.isDefined);
     while (pending.nonEmpty) {
         const pass2 = pending.map(p => {
-            return SchemaObject.fromDefinition(p.type, p.inPlace.get, schemasTypes, options, pool);
+            const targetType = p.isArray ? p.items : p.type;
+            return SchemaObject.fromDefinition(targetType, p.inPlace.get, schemasTypes, options, pool);
         });
         res.appendAll(pass2);
         pending = pass2.flatMap(s => s.properties).filter(p => p.inPlace.isDefined);
