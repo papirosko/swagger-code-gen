@@ -46,7 +46,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ }  -%>
     <%_ }) -%>
     <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
-    if (!!<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>) {
+    if (<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> !== undefined) {
         <%_ if (p.isArray) { -%>
         <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
             queryParams.push(`<%= p.name %>=${p}`);
