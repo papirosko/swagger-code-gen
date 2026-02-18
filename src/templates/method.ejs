@@ -76,7 +76,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
 
     const headers: HeadersInit = {
         ...requestOptions.headers || {},
-        'Accept': 'application/json',
+        'Accept': '<%= method.response.mimeType %>',
         <%_ if (body.nonEmpty && body.get.mimeType !== 'multipart/form-data') {%>
         'Content-Type': '<%= body.get.mimeType %>',
         <%_ }  -%>
@@ -97,5 +97,5 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         signal: requestOptions.signal,
         headers: headers
     });
-    return requestImpl<<%- method.response.responseType %>>(request, requestOptions);
+    return requestImpl<<%- method.response.responseType %>>(request, requestOptions, '<%= method.response.parseMode %>');
 }

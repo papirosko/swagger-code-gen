@@ -9,3 +9,4 @@ package-lock.json
 tsconfig.json
 tsconfig-eslint.json
 /tmp
+AGENTS.md

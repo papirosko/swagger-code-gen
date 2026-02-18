@@ -86,11 +86,17 @@ function objectToFormWwwEncoded(o: Record<string, any>): string {
         .join('&');
 }
 
-async function requestImpl<T>(request: Request, requestOptions: RequestOptions): Promise<T> {
+type ResponseParseMode = 'json' | 'text';
+
+async function requestImpl<T>(request: Request, requestOptions: RequestOptions, parseMode: ResponseParseMode = 'json'): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
     const resp = await fetch(preProcessed);
     const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
     if (postProcessed.ok) {
+        if (parseMode === 'text') {
+            return (await postProcessed.text()) as T;
+        }
+
         let json: any = null;
         if (postProcessed.headers.has('content-length')) {
             const ctLent = postProcessed.headers.get('content-length');
@@ -139,5 +145,4 @@ methods.foreach(method => {
 <%- include('scats-api-client.ejs'); %>
 
 <% } %>
-
 

@@ -17,6 +17,8 @@ export interface ResponseDetails {
     inPlace?: OpenApiSchema;
     responseType: string;
     description?: string;
+    mimeType: string;
+    parseMode: 'json' | 'text';
 }
 
 
@@ -57,6 +59,13 @@ export class Method {
 
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
+
+    private static parseModeByMimeType(mimeType: string): 'json' | 'text' {
+        if (mimeType.startsWith('text/') || mimeType.includes('xml')) {
+            return 'text';
+        }
+        return 'json';
+    }
 
     constructor(readonly path: string,
                 readonly method: string,
@@ -206,10 +215,29 @@ export class Method {
                 [mimeType, content[mimeType]]
             )).getOrElseValue(HashMap.empty);
 
-        this.response = mimeTypes.get('application/json')
-            .orElseValue(mimeTypes.values.headOption)
-            .filter(p => option(p.schema).isDefined)
+        const responseMimeType = mimeTypes.get('application/json')
+            .map(_ => 'application/json')
+            .orElse(() => mimeTypes.keySet.headOption)
+            .getOrElseValue('application/json');
+        const responseParseMode = Method.parseModeByMimeType(responseMimeType);
+
+        this.response = mimeTypes.get(responseMimeType)
+            .filter(p => option(p.schema).isDefined || responseParseMode === 'text')
             .map(p => {
+                if (responseParseMode === 'text') {
+                    const r = Property.fromDefinition('', '', {type: 'string'}, schemasTypes, options).copy({
+                        nullable: false,
+                        required: true,
+                    });
+                    return {
+                        asProperty: r,
+                        responseType: 'string',
+                        description: respDef.description,
+                        mimeType: responseMimeType,
+                        parseMode: responseParseMode,
+                    } as ResponseDetails;
+                }
+
                 if (p.schema.type === 'object' && p.schema['properties'] && Object.keys(p.schema['properties']).length > 0) {
 
                     const inPlaceObject = NameUtils.normaliseClassname(def.operationId + 'Response$' + method);
@@ -231,7 +259,9 @@ export class Method {
                         asProperty: r,
                         responseType: inPlaceObject,
                         description: respDef.description,
-                        inPlace: p.schema
+                        inPlace: p.schema,
+                        mimeType: responseMimeType,
+                        parseMode: responseParseMode,
                     } as ResponseDetails;
 
                 } else {
@@ -243,12 +273,16 @@ export class Method {
                         asProperty: r,
                         responseType: r.jsType,
                         description: respDef.description,
+                        mimeType: responseMimeType,
+                        parseMode: responseParseMode,
                     } as ResponseDetails;
                 }
             })
             .getOrElseValue(({
                 asProperty: Property.fromDefinition('', 'UNKNOWN', {type: 'any'}, schemasTypes, options),
                 responseType: 'any',
+                mimeType: responseMimeType,
+                parseMode: responseParseMode,
             }));
 
 
@@ -289,4 +323,3 @@ export class Method {
         }
     }
 }
-
