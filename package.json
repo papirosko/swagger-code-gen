@@ -3,11 +3,11 @@
   "version": "1.14.0",
   "type": "module",
   "bin": {
-    "generate-client": "./dist/cli.mjs"
+    "generate-client": "dist/cli.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/papirosko/swagger-code-gen"
+    "url": "git+https://github.com/papirosko/swagger-code-gen.git"
   },
   "keywords": [
     "swagger",
