@@ -88,13 +88,39 @@ function objectToFormWwwEncoded(o: Record<string, any>): string {
 
 type ResponseParseMode = 'json' | 'text';
 
+function normaliseCharset(charset: string): string {
+    const normalized = charset.trim().toLowerCase();
+    if (normalized === 'cp1251') {
+        return 'windows-1251';
+    }
+    return normalized;
+}
+
+function extractCharset(contentType: string | null): string {
+    if (contentType == null) {
+        return 'utf-8';
+    }
+    const match = contentType.match(/charset\s*=\s*("?)([^";\s]+)\1/i);
+    return normaliseCharset(match?.[2] || 'utf-8');
+}
+
+async function readResponseText(response: Response): Promise<string> {
+    const payload = await response.arrayBuffer();
+    const charset = extractCharset(response.headers.get('content-type'));
+    try {
+        return new TextDecoder(charset).decode(payload);
+    } catch {
+        return new TextDecoder('utf-8').decode(payload);
+    }
+}
+
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions, parseMode: ResponseParseMode = 'json'): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
     const resp = await fetch(preProcessed);
     const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
     if (postProcessed.ok) {
         if (parseMode === 'text') {
-            return (await postProcessed.text()) as T;
+            return (await readResponseText(postProcessed)) as T;
         }
 
         let json: any = null;
@@ -102,10 +128,10 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions, 
             const ctLent = postProcessed.headers.get('content-length');
             const ct = ctLent != null ? parseInt(ctLent): 0;
             if (ct > 0) {
-                json = await postProcessed.json()
+                json = JSON.parse((await readResponseText(postProcessed)).replace(/^\uFEFF/, ''))
             }
         } else {
-            json = await postProcessed.json()
+            json = JSON.parse((await readResponseText(postProcessed)).replace(/^\uFEFF/, ''))
         }
         return json as T;
     } else {
@@ -145,4 +171,3 @@ methods.foreach(method => {
 <%- include('scats-api-client.ejs'); %>
 
 <% } %>
-
