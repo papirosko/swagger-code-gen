@@ -1,4 +1,4 @@
-import {Collection, HashMap, mutable, Nil, option} from 'scats';
+import {Collection, HashMap, HashSet, mutable, Nil, option} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {OpenApiPaths} from './openapi.js';
@@ -171,9 +171,18 @@ function collectSchemaRefsFromType(type: string, schemas: HashMap<string, Schema
         .foreach(t => add(t));
 }
 
-export function filterUsedSchemas(paths: Collection<Method>, schemas: HashMap<string, Schema>): HashMap<string, Schema> {
+function wildcardMaskToRegExp(mask: string): RegExp {
+    const escaped = mask.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    const regex = escaped.replace(/\*/g, '.*').replace(/\?/g, '.');
+    return new RegExp(`^${regex}$`);
+}
+
+export function filterUsedSchemas(paths: Collection<Method>,
+                                  schemas: HashMap<string, Schema>,
+                                  includeSchemasByMask: HashSet<string> = HashSet.empty): HashMap<string, Schema> {
     const used = new Set<string>();
     const pending: string[] = [];
+    const maskRegexes = includeSchemasByMask.map(mask => wildcardMaskToRegExp(mask));
 
     const add = (name: string) => {
         if (!used.has(name) && schemas.containsKey(name)) {
@@ -196,6 +205,9 @@ export function filterUsedSchemas(paths: Collection<Method>, schemas: HashMap<st
             }
         });
     });
+    schemas.keySet
+        .filter(name => maskRegexes.exists(regex => regex.test(name)))
+        .foreach(name => add(name));
 
     while (pending.length > 0) {
         const schemaName = pending.shift()!;

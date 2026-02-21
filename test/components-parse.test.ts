@@ -13,7 +13,8 @@ const emptyOptions: GenerationOptions = {
   referencedObjectsNullableByDefault: false,
   includeTags: HashSet.from<string>([]),
   excludeTags: HashSet.from<string>([]),
-  onlyUsedSchemas: false
+  onlyUsedSchemas: false,
+  includeSchemasByMask: HashSet.from<string>([])
 };
 
 describe('components parsing', () => {
@@ -139,5 +140,22 @@ describe('components parsing', () => {
     const usedSchemas = filterUsedSchemas(methods, schemas);
 
     expect(usedSchemas.keySet.toArray).toEqual(['Pet']);
+  });
+
+  it('force-includes schemas by wildcard mask with dependencies', () => {
+    const includeOptions: GenerationOptions = {
+      ...emptyOptions,
+      includeTags: HashSet.from(['public']),
+      excludeTags: HashSet.from(['private']),
+      onlyUsedSchemas: true,
+      includeSchemasByMask: HashSet.from(['Status'])
+    };
+    const types = resolveSchemasTypes(spec);
+    const schemas = resolveSchemas(spec, types, includeOptions);
+    const methods = resolvePaths(spec, types, includeOptions, schemas);
+    const usedSchemas = filterUsedSchemas(methods, schemas, includeOptions.includeSchemasByMask);
+
+    expect(usedSchemas.keySet.toArray).toEqual(expect.arrayContaining(['Pet', 'Status']));
+    expect(usedSchemas.keySet.size).toBe(2);
   });
 });

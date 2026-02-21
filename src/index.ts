@@ -46,7 +46,9 @@ export async function main(url: string,
             const schemasTypes = resolveSchemasTypes(json);
             const allSchemas = resolveSchemas(json, schemasTypes, options);
             const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, allSchemas);
-            const schemas = options.onlyUsedSchemas ? filterUsedSchemas(paths, allSchemas) : allSchemas;
+            const schemas = options.onlyUsedSchemas
+                ? filterUsedSchemas(paths, allSchemas, options.includeSchemasByMask)
+                : allSchemas;
             const inplace = generateInPlace(paths, schemasTypes, options, schemas);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
