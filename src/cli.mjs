@@ -14,6 +14,7 @@ program
     .option('--referencedObjectsNullableByDefault', 'Assume that referenced objects can be null (say hello to .net assholes)', false)
     .option('--includeTags <tags...>', 'Space-separated list of tags of paths to be included. Path is included if it contains any of specified tag')
     .option('--excludeTags <tags...>', 'Space-separated list of tags of paths to be excluded. Path is excluded if it contains any of specified tag')
+    .option('--onlyUsedSchemas', 'Generate only schemas reachable from filtered methods', false)
     .option('--enableScats', 'Generate scats', false)
     .option('--targetNode', 'Add imports for node-fetch into generated code', false)
     .option('--user <username>', 'If swagger requires authorisation')
@@ -32,6 +33,7 @@ const targetNode = program.opts().targetNode;
 const outputFile = program.args[0];
 const includeTags = HashSet.from(program.opts().includeTags || []);
 const excludeTags = HashSet.from(program.opts().excludeTags || []);
+const onlyUsedSchemas = program.opts().onlyUsedSchemas;
 
 main(url, enableScats, targetNode, outputFile,
     ignoreSSLErrors,
@@ -42,7 +44,8 @@ main(url, enableScats, targetNode, outputFile,
     {
     referencedObjectsNullableByDefault: referencedObjectsNullableByDefault,
     includeTags: includeTags,
-    excludeTags: excludeTags
+    excludeTags: excludeTags,
+    onlyUsedSchemas: onlyUsedSchemas
 }).then(() => {
     // nothing
 });

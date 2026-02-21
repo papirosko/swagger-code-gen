@@ -1,7 +1,7 @@
 import log4js from 'log4js';
 import fetch from 'node-fetch';
 import {Renderer} from './renderer.js';
-import {generateInPlace, resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-parse.js';
+import {filterUsedSchemas, generateInPlace, resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-parse.js';
 
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
@@ -44,8 +44,9 @@ export async function main(url: string,
         .then(res => res.json())
         .then(async (json: any) => {
             const schemasTypes = resolveSchemasTypes(json);
-            const schemas = resolveSchemas(json, schemasTypes, options);
-            const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, schemas);
+            const allSchemas = resolveSchemas(json, schemasTypes, options);
+            const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, allSchemas);
+            const schemas = options.onlyUsedSchemas ? filterUsedSchemas(paths, allSchemas) : allSchemas;
             const inplace = generateInPlace(paths, schemasTypes, options, schemas);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 

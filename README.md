@@ -11,6 +11,7 @@ Usage:
 ```shell
 generate-client --url <URI> output_filename.ts
 generate-client --url <URI> --includeTags tag1 tag2 -- output_filename.ts
+generate-client --url <URI> --includeTags tag1 tag2 --onlyUsedSchemas -- output_filename.ts
 ```
 
 Cli parameters:
@@ -21,12 +22,26 @@ Cli parameters:
 * `--excludeTags <tags...>` - Space-separated list of tags of paths to be excluded. 
   Path is excluded if exclusion list is non-empty and path contains any of the tags from exclusion list.
   If the tag is both in inclusion and exclusion lists, it gets excluded.
+* `--onlyUsedSchemas` - generate only schemas that are reachable from filtered methods
+  (useful with `--includeTags`/`--excludeTags`). By default all schemas are generated.
 * `--referencedObjectsNullableByDefault` - then specified, the generated code will assume that
   any object's field, that references another object, can be null, unless it is explicitly specified to be not nullable
   (which is default in .net world: asp generates wrong spec)
 * `--enableScats` - generate additional wrappers in [scats](https://www.npmjs.com/package/scats) 
   style for all objects and create a service with methods for each endpoint.
 * `--targetNode` - adds imports for `node-fetch` package in generated code.
+
+## Tag filtering and schema pruning
+
+By default, tag filters affect only methods and all schemas are still generated:
+```shell
+generate-client --url <URI> --includeTags public -- output_filename.ts
+```
+
+To generate only schemas that are reachable from filtered methods, add `--onlyUsedSchemas`:
+```shell
+generate-client --url <URI> --includeTags public --onlyUsedSchemas -- output_filename.ts
+```
 
 
 

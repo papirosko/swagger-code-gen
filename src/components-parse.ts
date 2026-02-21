@@ -163,6 +163,56 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
     });
 }
 
+function collectSchemaRefsFromType(type: string, schemas: HashMap<string, Schema>, add: (name: string) => void) {
+    Collection.from(type.split(/[|&]/))
+        .map(t => t.trim())
+        .filter(t => t.length > 0)
+        .filter(t => schemas.containsKey(t))
+        .foreach(t => add(t));
+}
+
+export function filterUsedSchemas(paths: Collection<Method>, schemas: HashMap<string, Schema>): HashMap<string, Schema> {
+    const used = new Set<string>();
+    const pending: string[] = [];
+
+    const add = (name: string) => {
+        if (!used.has(name) && schemas.containsKey(name)) {
+            used.add(name);
+            pending.push(name);
+        }
+    };
+
+    const collectFromProperty = (p: Property) => {
+        collectSchemaRefsFromType(p.type, schemas, add);
+        collectSchemaRefsFromType(p.items, schemas, add);
+    };
+
+    paths.foreach(m => {
+        m.parameters.foreach(p => p.referencedSchemas.foreach(t => add(t)));
+        collectFromProperty(m.response.asProperty);
+        m.body.foreach(b => {
+            if (b.body instanceof Property) {
+                collectFromProperty(b.body);
+            }
+        });
+    });
+
+    while (pending.length > 0) {
+        const schemaName = pending.shift()!;
+        const schema = schemas.get(schemaName).getOrElseThrow(() => new Error(`No schema for ${schemaName}`));
+        if (schema instanceof SchemaObject) {
+            schema.parents.keySet.foreach(parentName => add(parentName));
+            schema.properties.foreach(p => collectFromProperty(p));
+        } else if (schema instanceof Property) {
+            collectFromProperty(schema);
+        }
+    }
+
+    return schemas.keySet
+        .filter(name => used.has(name))
+        .toMap(name => [name, schemas.get(name).getOrElseThrow(() => new Error(`No schema for ${name}`))]);
+}
+
 export function generateInPlace(paths: Collection<Method>,
                                 schemasTypes: HashMap<string, SchemaType>,
                                 options: GenerationOptions,

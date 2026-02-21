@@ -1,6 +1,7 @@
 import {describe, expect, it} from '@jest/globals';
 import {HashSet} from 'scats';
 import {
+  filterUsedSchemas,
   resolvePaths,
   resolveSchemas,
   resolveSchemasTypes
@@ -11,7 +12,8 @@ import {Property} from '../src/property.js';
 const emptyOptions: GenerationOptions = {
   referencedObjectsNullableByDefault: false,
   includeTags: HashSet.from<string>([]),
-  excludeTags: HashSet.from<string>([])
+  excludeTags: HashSet.from<string>([]),
+  onlyUsedSchemas: false
 };
 
 describe('components parsing', () => {
@@ -122,5 +124,20 @@ describe('components parsing', () => {
     expect(methods.size).toBe(1);
     expect(methods.head.endpointName).toBe('listPets');
     expect(methods.head.response.responseType).toBe('ReadonlyArray<Pet>');
+  });
+
+  it('keeps only schemas used by filtered methods', () => {
+    const includeOptions: GenerationOptions = {
+      ...emptyOptions,
+      includeTags: HashSet.from(['public']),
+      excludeTags: HashSet.from(['private']),
+      onlyUsedSchemas: true
+    };
+    const types = resolveSchemasTypes(spec);
+    const schemas = resolveSchemas(spec, types, includeOptions);
+    const methods = resolvePaths(spec, types, includeOptions, schemas);
+    const usedSchemas = filterUsedSchemas(methods, schemas);
+
+    expect(usedSchemas.keySet.toArray).toEqual(['Pet']);
   });
 });

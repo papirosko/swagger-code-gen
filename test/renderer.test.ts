@@ -14,7 +14,8 @@ import {GenerationOptions} from '../src/schemas.js';
 const options: GenerationOptions = {
   referencedObjectsNullableByDefault: false,
   includeTags: HashSet.from<string>([]),
-  excludeTags: HashSet.from<string>([])
+  excludeTags: HashSet.from<string>([]),
+  onlyUsedSchemas: false
 };
 
 describe('Renderer', () => {

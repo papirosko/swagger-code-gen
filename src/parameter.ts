@@ -13,6 +13,7 @@ export class Parameter {
                 readonly uniqueName: string,
                 readonly inValue: string,
                 readonly jsType: string,
+                readonly referencedSchemas: Collection<string>,
                 readonly required: boolean,
                 readonly isArray: boolean,
                 readonly defaultValue: Option<string | number>,
@@ -29,6 +30,7 @@ export class Parameter {
         const inValue = def.in;
         const desc = option(def.description);
         let defaultValue: Option<string | number> = none;
+        const references = new Set<string>();
         const schema = def.schema ?
             SchemaFactory.build(def.name, def.schema, schemas, options) :
             Property.fromDefinition('', name, {
@@ -45,9 +47,13 @@ export class Parameter {
             if (schema.type === 'integer') {
                 jsType = 'number';
             }
+            if (schemas.containsKey(schema.name)) {
+                references.add(schema.name);
+            }
         } else if (schema instanceof SchemaEnum) {
             if (schemas.containsKey(schema.name)) {
                 jsType = schema.name;
+                references.add(schema.name);
             } else if (schema.type === 'string') {
                 jsType = `${schema.values.map(x => `'${x}'`).mkString(' | ')}`;
             } else if (schema.type === 'integer') {
@@ -65,12 +71,29 @@ export class Parameter {
             });
         } else if (schema instanceof Property) {
             jsType = schema.jsType;
+            if (schemas.containsKey(schema.type)) {
+                references.add(schema.type);
+            }
+            if (schema.isArray && schemas.containsKey(schema.items)) {
+                references.add(schema.items);
+            }
         } else {
             throw new Error('Unknown schema type');
         }
         const required = option(def.required).exists(identity) || defaultValue.nonEmpty;
         const isArray = def?.schema?.type === 'array';
-        return new Parameter(name, rawName, name, inValue, jsType, required, isArray, defaultValue, desc);
+        return new Parameter(
+            name,
+            rawName,
+            name,
+            inValue,
+            jsType,
+            Collection.from(Array.from(references)),
+            required,
+            isArray,
+            defaultValue,
+            desc
+        );
     }
 
     static toJSName(path: string): string {
@@ -87,6 +110,7 @@ export class Parameter {
             option(p.uniqueName).getOrElseValue(this.uniqueName),
             option(p.in).getOrElseValue(this.in),
             option(p.jsType).getOrElseValue(this.jsType),
+            option(p.referencedSchemas).getOrElseValue(this.referencedSchemas),
             option(p.required).getOrElseValue(this.required),
             option(p.isArray).getOrElseValue(this.isArray),
             option(p.defaultValue).getOrElseValue(this.defaultValue),

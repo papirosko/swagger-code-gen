@@ -13,6 +13,7 @@ export interface GenerationOptions {
     referencedObjectsNullableByDefault: boolean;
     includeTags: HashSet<string>;
     excludeTags: HashSet<string>;
+    onlyUsedSchemas: boolean;
 }
 
 export class SchemaFactory {
