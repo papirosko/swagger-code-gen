@@ -24,6 +24,7 @@ Cli parameters:
   If the tag is both in inclusion and exclusion lists, it gets excluded.
 * `--onlyUsedSchemas` - generate only schemas that are reachable from filtered methods
   (useful with `--includeTags`/`--excludeTags`). By default all schemas are generated.
+* `--includeSchemasByMask <masks...>` Space-separated list of schema name masks to force-include with dependencies (supports * and ? wildcards)
 * `--referencedObjectsNullableByDefault` - then specified, the generated code will assume that
   any object's field, that references another object, can be null, unless it is explicitly specified to be not nullable
   (which is default in .net world: asp generates wrong spec)
