@@ -76,4 +76,41 @@ describe('Renderer', () => {
     expect(output).toContain('export enum Status');
     expect(output).toContain('async function listPets');
   });
+
+  it('wraps scats unknown responses to Option at runtime', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/edo/message': {
+          get: {
+            operationId: 'edo_message',
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': {}
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('Promise<TryLike<Option<any>>>');
+    expect(output).toContain('.map(res => option(res))');
+  });
 });
