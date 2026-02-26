@@ -86,7 +86,7 @@ function objectToFormWwwEncoded(o: Record<string, any>): string {
         .join('&');
 }
 
-type ResponseParseMode = 'json' | 'text';
+type ResponseParseMode = 'json' | 'text' | 'bytes';
 
 function normaliseCharset(charset: string): string {
     const normalized = charset.trim().toLowerCase();
@@ -121,6 +121,13 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions, 
     if (postProcessed.ok) {
         if (parseMode === 'text') {
             return (await readResponseText(postProcessed)) as T;
+        }
+        if (parseMode === 'bytes') {
+            <% if (targetNode) { %>
+            return Buffer.from(await postProcessed.arrayBuffer()) as T;
+            <% } else { %>
+            return await postProcessed.arrayBuffer() as T;
+            <% } %>
         }
 
         let json: any = null;

@@ -16,7 +16,7 @@
  * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
- * @return {<%= method.response.responseType %>} <%= method.response.description %>
+ * @return {<%= method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType %>} <%= method.response.description %>
  */
 export async function <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
     <%_ if (!method.wrapParamsInObject) { -%>
@@ -34,7 +34,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     body<%= body.get.body.required ? '' : '?'%>: <%- body.get.body.jsType %>,
     <%_ } -%>
     requestOptions: RequestOptions = defReqOpts()
-): Promise<<%- method.response.responseType %>> {
+): Promise<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
     const queryParams = [];
@@ -97,5 +97,5 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         signal: requestOptions.signal,
         headers: headers
     });
-    return requestImpl<<%- method.response.responseType %>>(request, requestOptions, '<%= method.response.parseMode %>');
+    return requestImpl<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>>(request, requestOptions, '<%= method.response.parseMode %>');
 }

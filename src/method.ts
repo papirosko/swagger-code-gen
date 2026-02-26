@@ -18,7 +18,7 @@ export interface ResponseDetails {
     responseType: string;
     description?: string;
     mimeType: string;
-    parseMode: 'json' | 'text';
+    parseMode: 'json' | 'text' | 'bytes';
 }
 
 
@@ -60,7 +60,10 @@ export class Method {
     private readonly operationId: Option<string>;
     readonly wrapParamsInObject: boolean;
 
-    private static parseModeByMimeType(mimeType: string): 'json' | 'text' {
+    private static parseModeByMimeType(mimeType: string): 'json' | 'text' | 'bytes' {
+        if (mimeType === 'application/octet-stream') {
+            return 'bytes';
+        }
         if (mimeType.startsWith('text/') || mimeType.includes('xml')) {
             return 'text';
         }
@@ -222,8 +225,22 @@ export class Method {
         const responseParseMode = Method.parseModeByMimeType(responseMimeType);
 
         this.response = mimeTypes.get(responseMimeType)
-            .filter(p => option(p.schema).isDefined || responseParseMode === 'text')
+            .filter(p => option(p.schema).isDefined || responseParseMode === 'text' || responseParseMode === 'bytes')
             .map(p => {
+                if (responseParseMode === 'bytes') {
+                    const r = Property.fromDefinition('', '', {type: 'any'}, schemasTypes, options).copy({
+                        nullable: false,
+                        required: true,
+                    });
+                    return {
+                        asProperty: r,
+                        responseType: 'any',
+                        description: respDef.description,
+                        mimeType: responseMimeType,
+                        parseMode: responseParseMode,
+                    } as ResponseDetails;
+                }
+
                 if (responseParseMode === 'text') {
                     const r = Property.fromDefinition('', '', {type: 'string'}, schemasTypes, options).copy({
                         nullable: false,

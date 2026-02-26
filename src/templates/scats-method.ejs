@@ -16,7 +16,7 @@
      * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
     <%_ } -%>
      * @param {RequestOptions} requestOptions Additional request params
-     * @return {<%= method.response.responseType %>} <%= method.response.description %>
+     * @return {<%= method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType %>} <%= method.response.description %>
      */
     async <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
         <%_ if (!method.wrapParamsInObject) { -%>
@@ -34,7 +34,7 @@
         body: <%- body.body.scatsWrapperType %>,
         <%_ }); -%>
         requestOptions: RequestOptions = this.requestOptions
-    ): Promise<TryLike<<%- method.response.asProperty.scatsWrapperType %>>> {
+    ): Promise<TryLike<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.asProperty.scatsWrapperType %><% } %>>> {
         return (await Try.promise(() =>
                 <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
                     <%_ if (!method.wrapParamsInObject) { -%>
@@ -68,6 +68,7 @@
                     requestOptions
                 )
             ))
+            <%_ if (method.response.parseMode !== 'bytes') { _%>
             <%_ if (method.response.asProperty.referencesObject) { _%>
             <%_ if (method.response.asProperty.required && !method.response.asProperty.nullable) { _%>
             .map(res => <%- method.response.asProperty.scatsWrapperType %>.fromJson(res))
@@ -89,4 +90,6 @@
             <%_ } else if (!method.response.asProperty.required || method.response.asProperty.nullable) { _%>
             .map(res => option(res))
             <%_ } _%>;
+            <%_ } else { _%>;
+            <%_ } _%>
     }
