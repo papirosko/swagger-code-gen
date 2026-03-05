@@ -1,6 +1,6 @@
 {
   "name": "@penkov/swagger-code-gen",
-  "version": "1.18.2",
+  "version": "1.18.3",
   "type": "module",
   "bin": {
     "generate-client": "dist/cli.mjs"
@@ -24,7 +24,6 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:petstore": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url https://petstore3.swagger.io/api/v3/openapi.json tmp/petstore.ts",
-    "test:petstore1": "node --loader ts-node/esm ./src/cli.mjs --enableScats --targetNode --url http://sdelano-me-backend-develop.ndev.devuptolike.com/-json tmp/sdelano.ts",
     "clean": "rimraf dist",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prebuild": "npm run lint && npm run clean",
