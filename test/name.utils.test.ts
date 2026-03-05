@@ -26,5 +26,18 @@ describe('NameUtils', () => {
       expect(NameUtils.normalisePropertyName('pet-name')).toBe('pet_name');
       expect(NameUtils.normalisePropertyName('meta.data.version')).toBe('meta_data_version');
     });
+
+    it('escapes reserved words and invalid identifier starts', () => {
+      expect(NameUtils.normalisePropertyName('function')).toBe('$function');
+      expect(NameUtils.normalisePropertyName('1name')).toBe('$1name');
+    });
+  });
+
+  describe('escapeIdentifier', () => {
+    it('escapes TS reserved identifiers', () => {
+      expect(NameUtils.escapeIdentifier('delete')).toBe('$delete');
+      expect(NameUtils.escapeIdentifier('class')).toBe('$class');
+      expect(NameUtils.escapeIdentifier('name')).toBe('name');
+    });
   });
 });

@@ -188,7 +188,7 @@ export class SchemaObject implements Schema {
             .toSet;
 
 
-        const properties = allOff.getOrElseValue(Collection.of(def))
+        const collectedProperties = allOff.getOrElseValue(Collection.of(def))
             .flatMap(subSchema => {
                 return option(subSchema['properties'])
                     .map(props => Collection.from(Object.keys(props)))
@@ -201,6 +201,28 @@ export class SchemaObject implements Schema {
                         }
                     );
             });
+
+        const takenNames = new Set<string>();
+        const nextSuffixByName = new Map<string, number>();
+        const properties = collectedProperties.map(property => {
+            const baseName = property.normalisedName;
+            if (!takenNames.has(baseName)) {
+                takenNames.add(baseName);
+                return property;
+            }
+            const start = nextSuffixByName.get(baseName) || 1;
+            let suffix = start;
+            let candidate = `${baseName}_${suffix}`;
+            while (takenNames.has(candidate)) {
+                suffix += 1;
+                candidate = `${baseName}_${suffix}`;
+            }
+            nextSuffixByName.set(baseName, suffix + 1);
+            takenNames.add(candidate);
+            return property.copy({
+                safeName: candidate
+            });
+        });
 
         return new SchemaObject(name, def.title, def.type, properties,
             parents.toMap(p => [p, pool.get(p).get as SchemaObject]),

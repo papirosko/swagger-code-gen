@@ -20,7 +20,8 @@ export class Property implements Schema {
                 readonly referencesObject: boolean,
                 readonly itemReferencesObject: boolean,
                 readonly enumValues: Option<Collection<string>>,
-                readonly inPlace: Option<OpenApiSchema>) {
+                readonly inPlace: Option<OpenApiSchema>,
+                readonly safeName?: string) {
     }
 
 
@@ -38,6 +39,7 @@ export class Property implements Schema {
             option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
             option(p.enumValues).getOrElseValue(this.enumValues),
             option(p.inPlace).getOrElseValue(this.inPlace),
+            option(p.safeName).getOrElseValue(this.safeName),
         );
     }
 
@@ -238,7 +240,7 @@ export class Property implements Schema {
 
 
     get normalisedName() {
-        return NameUtils.normalisePropertyName(this.name);
+        return this.safeName || NameUtils.normalisePropertyName(this.name);
     }
 
     /**

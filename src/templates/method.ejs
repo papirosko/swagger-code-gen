@@ -40,21 +40,21 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     const queryParams = [];
     <%_ method.parameters.filter(x => x.in === 'query' && x.required).foreach(p => { -%>
     <%_ if (p.jsType === 'string') { -%>
-    queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
+    queryParams.push(`<%= p.rawName %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
     <%_ } else { -%>
-    queryParams.push(`<%= p.name %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
+    queryParams.push(`<%= p.rawName %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
     <%_ }  -%>
     <%_ }) -%>
     <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
     if (<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> !== undefined) {
         <%_ if (p.isArray) { -%>
         <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
-            queryParams.push(`<%= p.name %>=${p}`);
+            queryParams.push(`<%= p.rawName %>=${p}`);
         });
         <%_ } else if (p.jsType === 'string') { -%>
-        queryParams.push(`<%= p.name %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
+        queryParams.push(`<%= p.rawName %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
         <%_ } else { -%>
-        queryParams.push(`<%= p.name %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
+        queryParams.push(`<%= p.rawName %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
         <%_ }  -%>
     }
     <%_ }) -%>

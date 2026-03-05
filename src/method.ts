@@ -314,7 +314,7 @@ export class Method {
     get pathWithSubstitutions(): string {
         const paramPrefix = `${this.wrapParamsInObject ? 'params.' : ''}`;
         return this.path.replace(/\{(\w+?)\}/g, (matched, group) => {
-            const remappedName = this.parameters.find(p => p.name === group && p.in === 'path')
+            const remappedName = this.parameters.find(p => p.rawName === group && p.in === 'path')
                 .map(_ => _.uniqueName)
                 .getOrElseValue(group);
             return `\${${paramPrefix}${remappedName}}`;

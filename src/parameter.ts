@@ -3,6 +3,7 @@ import {GenerationOptions, SchemaEnum, SchemaFactory, SchemaObject, SchemaType} 
 import {Collection, HashMap, identity, none, Option, option} from 'scats';
 import {Method} from './method.js';
 import {Property} from './property.js';
+import {NameUtils} from './name.utils.js';
 
 export class Parameter {
 
@@ -98,9 +99,10 @@ export class Parameter {
 
     static toJSName(path: string): string {
         const tokens = Collection.from(path.split(/\W/)).filter(t => t.length > 0);
-        return tokens.headOption.getOrElseValue('') + tokens.drop(1).map(t => {
+        const baseName = tokens.headOption.getOrElseValue('') + tokens.drop(1).map(t => {
             return Method.capitalize(t);
         }).mkString();
+        return NameUtils.escapeIdentifier(baseName);
     }
 
     copy(p: Partial<Parameter>): Parameter {

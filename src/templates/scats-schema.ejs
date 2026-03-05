@@ -26,7 +26,7 @@ export class <%= schema.normalName %>Dto {
             Collection.from(option(json['<%= p.name %>']).getOrElseValue([]))
                 <% if (p.itemReferencesObject) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>,
             <%_ } else if (p.required && !p.nullable) { _%>
-            json.<%= p.name %>,
+            json['<%= p.name %>'],
             <%_ } else { _%>
             option(json['<%= p.name %>']),
             <%_ } _%>
@@ -66,4 +66,3 @@ export class <%= schema.normalName %>Dto {
 }
 
 <%_ } -%>
-
