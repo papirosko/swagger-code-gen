@@ -65,13 +65,13 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
 
     let bodySerialised: BodyInit | null = null;
     <%_ if (body.nonEmpty && body.get.mimeType === 'application/json') {%>
-    bodySerialised = JSON.stringify(body);
+    bodySerialised = body != null ? JSON.stringify(body) : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/x-www-form-urlencoded') { -%>
-    bodySerialised = objectToFormWwwEncoded(body);
+    bodySerialised = body != null ? objectToFormWwwEncoded(body) : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') { -%>
-    bodySerialised = objectToForm(body);
+    bodySerialised = body != null ? objectToForm(body) : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/octet-stream') { -%>
-    bodySerialised = body;
+    bodySerialised = body ?? null;
     <%_ }  -%>
 
     const headers: HeadersInit = {
@@ -82,7 +82,11 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         <%_ }  -%>
         <%_ if (method.parameters.filter(x => x.in === 'header').nonEmpty) { -%>
         <%_ method.parameters.filter(x => x.in === 'header').foreach(p => { -%>
+        <%_ if (p.required) { -%>
         '<%= p.rawName %>': <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>,
+        <%_ } else { -%>
+        ...(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> != null ? {'<%= p.rawName %>': <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>} : {}),
+        <%_ } -%>
         <%_ }) -%>
         <%_ }  -%>
     };

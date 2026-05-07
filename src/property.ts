@@ -173,10 +173,9 @@ export class Property implements Schema {
 
     get jsType(): string {
         let res = Property.toJsType(this.type, this.items, this.format);
-        if (this.nullable) {
-            res = res + ' | null';
-        } else if (this.enumValues.exists(x => x.nonEmpty)) {
+        if (this.enumValues.exists(x => x.nonEmpty)) {
             res = this.enumValues.get
+                .filter(v => v != null)
                 .map(enumValue => {
                     if (this.type === 'string') {
                         return `'${enumValue}'`;
@@ -185,6 +184,9 @@ export class Property implements Schema {
                     }
                 })
                 .mkString(' | ');
+        }
+        if (this.nullable) {
+            res = res + ' | null';
         }
         return res;
 
@@ -304,6 +306,7 @@ export class Property implements Schema {
             let jsType = Property.toJsType(this.type, this.items, this.format);
             if (this.enumValues.exists(x => x.nonEmpty)) {
                 jsType = this.enumValues.get
+                    .filter(v => v != null)
                     .map(enumValue => {
                         if (this.type === 'string') {
                             return `'${enumValue}'`;

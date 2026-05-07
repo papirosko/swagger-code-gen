@@ -2,6 +2,7 @@ export class NameUtils {
     private static readonly RESERVED_IDENTIFIERS = new Set([
         'abstract',
         'any',
+        'arguments',
         'as',
         'asserts',
         'async',

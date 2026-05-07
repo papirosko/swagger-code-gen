@@ -275,6 +275,12 @@ export function generateInPlace(paths: Collection<Method>,
                 .flatMap(s => s.properties)
                 .flatMap(p => collectInplaceFromProperty(p))
         )
+        .appendedAll(
+            // Collect inplace objects from property-type schemas (e.g. arrays with inline item definitions)
+            pool.values.filter(s => s.schemaType === 'property')
+                .map(s => s as Property)
+                .flatMap(p => collectInplaceFromProperty(p))
+        )
     );
 
     let pending = res.toCollection.flatMap(s => s.properties).filter(p => p.inPlace.isDefined);

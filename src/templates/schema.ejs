@@ -1,5 +1,5 @@
 <%_ if (schema.schemaType === 'object') { -%>
-export interface <%= schema.normalName %><%= schema.parentsString%> {
+export interface <%= schema.normalName %><%- schema.parentsString%> {
     <%_ schema.properties.foreach(p => { -%>
     <%_ p.description.foreach(d => { -%>
     /**
@@ -25,7 +25,7 @@ export enum <%= schema.normalName %> {
     <%_ }); -%>
 }
 <%_ } else { -%>
-export type <%= schema.normalName %> = <%- schema.values.map(p => p == null ? 'null' : "'" + String(p).replace(/'/g, "\\'") + "'").mkString(' | ') %>;
+export type <%= schema.normalName %> = <%- schema.values.filter(p => p != null).map(p => "'" + String(p).replace(/'/g, "\\'") + "'").mkString(' | ') %>;
 <%_ } -%>
 <%_ } if (schema.schemaType === 'property') { -%>
 <%_ schema.description.foreach(d => { -%>

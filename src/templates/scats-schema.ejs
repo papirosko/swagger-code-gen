@@ -48,6 +48,8 @@ export class <%= schema.normalName %>Dto {
             <%_ if (p.referencesObject) { _%>
             <%_ if (p.required && !p.nullable) { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>.toJson,
+            <%_ } else if (p.required && p.nullable) { _%>
+            '<%= p.name %>': this.<%= p.normalisedName %>.map(_ => _.toJson).orNull,
             <%_ } else { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>.map(_ => _.toJson).orUndefined,
             <%_ } _%>
@@ -57,6 +59,8 @@ export class <%= schema.normalName %>Dto {
                 .toArray,
             <%_ } else if (p.required && !p.nullable) { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>,
+            <%_ } else if (p.required && p.nullable) { _%>
+            '<%= p.name %>': this.<%= p.normalisedName %>.orNull,
             <%_ } else { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>.orUndefined,
             <%_ } _%>

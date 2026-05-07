@@ -130,8 +130,28 @@ export class SchemaObject implements Schema {
                           readonly explicitlyRequiredProperties: HashSet<string>) {
     }
 
+    /**
+     * Generates the `extends` clause for the interface.
+     * When a child schema (via allOf) re-declares a property from a parent with a
+     * different (wider) type, TypeScript rejects plain `extends`. In that case we
+     * emit `Omit<Parent, 'field1' | 'field2'>` so the child can safely override
+     * those fields while still inheriting the rest.
+     */
     get parentsString() {
-        return this.parents.nonEmpty ? ' extends ' + this.parents.keySet.map(n => NameUtils.normaliseClassname(n)).mkString(', ') : '';
+        if (this.parents.isEmpty) return '';
+        const ownPropNames = this.properties.map(p => p.name).toSet;
+        const parts = this.parents.entries.map(([name, parent]) => {
+            const conflicts = parent.properties
+                .filter(pp => ownPropNames.contains(pp.name))
+                .map(pp => pp.name);
+            const normalName = NameUtils.normaliseClassname(name);
+            if (conflicts.nonEmpty) {
+                const omitKeys = conflicts.map(c => `'${c}'`).mkString(' | ');
+                return `Omit<${normalName}, ${omitKeys}>`;
+            }
+            return normalName;
+        });
+        return ' extends ' + parts.mkString(', ');
     }
 
     propsIncludingInherited(): Collection<Property> {
