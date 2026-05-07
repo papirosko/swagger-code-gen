@@ -1,4 +1,4 @@
-import {OpenApiMethod, OpenApiProperty, OpenApiSchema} from './openapi.js';
+import {OpenApiMethod, OpenApiParam, OpenApiProperty, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {Parameter} from './parameter.js';
@@ -75,13 +75,23 @@ export class Method {
                 def: OpenApiMethod,
                 schemasTypes: HashMap<string, SchemaType>,
                 options: GenerationOptions,
-                pool: HashMap<string, Schema>) {
+                pool: HashMap<string, Schema>,
+                pathLevelParameters: OpenApiParam[] = []) {
         this.tags = HashSet.from(option(def.tags).getOrElseValue([]));
         this.summary = def.summary;
         this.description = def.description;
         this.operationId = option(def.operationId);
 
-        const parameters = Collection.from(option(def.parameters).getOrElseValue([]))
+        // Merge path-level and operation-level parameters.
+        // Operation-level params override path-level ones with the same name+in combination.
+        const operationParams = option(def.parameters).getOrElseValue([]);
+        const operationParamKeys = new Set(operationParams.map(p => `${p.in}:${p.name}`));
+        const mergedParams = [
+            ...pathLevelParameters.filter(p => !operationParamKeys.has(`${p.in}:${p.name}`)),
+            ...operationParams,
+        ];
+
+        const parameters = Collection.from(mergedParams)
             .map(p => Parameter.fromDefinition(p, schemasTypes, options))
             .sort((a, b) => {
                 const r1 = a.required ? 1 : 0;

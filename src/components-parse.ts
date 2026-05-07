@@ -1,7 +1,7 @@
 import {Collection, HashMap, HashSet, mutable, Nil, option} from 'scats';
 import {GenerationOptions, Schema, SchemaFactory, SchemaObject, SchemaType} from './schemas.js';
 import {Property, SCHEMA_PREFIX} from './property.js';
-import {OpenApiPaths} from './openapi.js';
+import {OpenApiMethod, OpenApiParam, OpenApiPaths} from './openapi.js';
 import {Method, supportedBodyMimeTypes} from './method.js';
 
 export function resolveSchemasTypes(json: any): HashMap<string, SchemaType> {
@@ -148,14 +148,31 @@ export function resolveSchemas(json: any,
 }
 
 
+const httpMethods = new Set(['get', 'post', 'put', 'delete', 'patch', 'options', 'head', 'trace']);
+
+function resolveParamRef(param: any, json: any): OpenApiParam {
+    if (param['$ref']) {
+        const parts = param['$ref'].split('/');
+        let resolved = json;
+        for (const part of parts.slice(1)) {
+            resolved = resolved[part];
+        }
+        return resolved as OpenApiParam;
+    }
+    return param as OpenApiParam;
+}
+
 export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType>, options: GenerationOptions,
                              pool: HashMap<string, Schema>) {
     const jsonSchemas = json.paths as OpenApiPaths;
     return Collection.from(Object.keys(jsonSchemas)).flatMap(path => {
-        const methods = jsonSchemas[path];
-        return Collection.from(Object.keys(methods)).map(methodName =>
-            new Method(path, methodName, methods[methodName], schemasTypes, options, pool)
-        );
+        const pathItem = jsonSchemas[path];
+        const pathLevelParameters = option(pathItem.parameters).getOrElseValue([]).map(p => resolveParamRef(p, json));
+        return Collection.from(Object.keys(pathItem))
+            .filter(methodName => httpMethods.has(methodName.toLowerCase()))
+            .map(methodName =>
+                new Method(path, methodName, pathItem[methodName] as OpenApiMethod, schemasTypes, options, pool, pathLevelParameters)
+            );
     }).filter(m => {
         const included = options.includeTags.isEmpty || options.includeTags.intersect(m.tags).nonEmpty;
         const excluded = options.excludeTags.nonEmpty && options.excludeTags.intersect(m.tags).nonEmpty;

@@ -74,7 +74,8 @@ export interface OpenApiMethod {
 }
 
 export interface OpenApiPath {
-    [method: string]: OpenApiMethod;
+    parameters?: OpenApiParam[];
+    [method: string]: OpenApiMethod | OpenApiParam[] | undefined;
 }
 
 export interface OpenApiPaths {
