@@ -194,6 +194,29 @@ function wildcardMaskToRegExp(mask: string): RegExp {
     return new RegExp(`^${regex}$`);
 }
 
+/**
+ * Recursively collects all $ref schema references from a raw OpenAPI definition object.
+ * Used to discover dependencies of inplace (inline) schemas that are not in the main schema pool.
+ */
+function collectRefsFromDefinition(def: any, schemas: HashMap<string, Schema>, add: (name: string) => void) {
+    if (!def || typeof def !== 'object') return;
+    if (def['$ref']) {
+        const ref = def['$ref'] as string;
+        if (ref.startsWith(SCHEMA_PREFIX)) {
+            const name = ref.substring(SCHEMA_PREFIX.length);
+            if (schemas.containsKey(name)) add(name);
+        }
+    }
+    for (const key of Object.keys(def)) {
+        const val = def[key];
+        if (Array.isArray(val)) {
+            val.forEach(item => collectRefsFromDefinition(item, schemas, add));
+        } else if (val && typeof val === 'object') {
+            collectRefsFromDefinition(val, schemas, add);
+        }
+    }
+}
+
 export function filterUsedSchemas(paths: Collection<Method>,
                                   schemas: HashMap<string, Schema>,
                                   includeSchemasByMask: HashSet<string> = HashSet.empty): HashMap<string, Schema> {
@@ -231,7 +254,13 @@ export function filterUsedSchemas(paths: Collection<Method>,
         const schema = schemas.get(schemaName).getOrElseThrow(() => new Error(`No schema for ${schemaName}`));
         if (schema instanceof SchemaObject) {
             schema.parents.keySet.foreach(parentName => add(parentName));
-            schema.properties.foreach(p => collectFromProperty(p));
+            schema.properties.foreach(p => {
+                collectFromProperty(p);
+                // Traverse inplace schema dependencies (inline objects defined in properties)
+                p.inPlace.foreach(inplaceDef => {
+                    collectRefsFromDefinition(inplaceDef, schemas, add);
+                });
+            });
         } else if (schema instanceof Property) {
             collectFromProperty(schema);
         }
