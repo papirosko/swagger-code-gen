@@ -98,7 +98,7 @@ export class Property implements Schema {
                             option(oneOfItem.$ref)
                                 .map(ref => ref.substring(SCHEMA_PREFIX.length))
                                 .orElseValue(option(oneOfItem.type))
-                        ).mkString(' | ')
+                        ).distinct.mkString(' | ')
                     )
             )
             .orElse(() =>
@@ -114,6 +114,7 @@ export class Property implements Schema {
                                     .orElseValue(option(oneOfItem.type))
                             )
                             .map(tpe => this.toJsType(tpe))
+                            .distinct
                             .mkString(' | ');
                     })
             )
@@ -188,6 +189,10 @@ export class Property implements Schema {
         if (this.nullable) {
             res = res + ' | null';
         }
+        // Deduplicate union members (e.g. multiple inline objects resolving to 'object')
+        res = [...new Set(res.split(' | ').map(t => {
+            switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
+        }))].join(' | ');
         return res;
 
     }
@@ -316,6 +321,9 @@ export class Property implements Schema {
                     })
                     .mkString(' | ');
             }
+            jsType = [...new Set(jsType.split(' | ').map(t => {
+                switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
+            }))].join(' | ');
             return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }
     }
