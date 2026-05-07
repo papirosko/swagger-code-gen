@@ -194,6 +194,10 @@ export class Property implements Schema {
         return this.type === 'array';
     }
 
+    get normalName(): string {
+        return NameUtils.normaliseClassname(this.name);
+    }
+
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
         return option(tpe)
             .map(x => Array.isArray(x) ? Collection.from(x) : Collection.from(x.split('|')))

@@ -15,9 +15,23 @@ export interface <%= schema.normalName %><%= schema.parentsString%> {
  * <%= d %>
  */
 <%_ }); -%>
+<%_ const isValidIdent = (s) => typeof s === 'string' && /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(s);
+    const allValid = schema.values.forall(p => isValidIdent(p));
+-%>
+<%_ if (allValid) { -%>
 export enum <%= schema.normalName %> {
     <%_ schema.values.foreach(p => { -%>
     <%= p %> = '<%= p %>',
     <%_ }); -%>
 }
+<%_ } else { -%>
+export type <%= schema.normalName %> = <%- schema.values.map(p => p == null ? 'null' : "'" + String(p).replace(/'/g, "\\'") + "'").mkString(' | ') %>;
+<%_ } -%>
+<%_ } if (schema.schemaType === 'property') { -%>
+<%_ schema.description.foreach(d => { -%>
+/**
+ * <%= d %>
+ */
+<%_ }); -%>
+export type <%= schema.normalName %> = <%- schema.jsType %>;
 <%_ } -%>
