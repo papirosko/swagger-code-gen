@@ -3,6 +3,17 @@ export class ApiClient {
     constructor(readonly requestOptions: Readonly<RequestOptions> = defReqOpts()) {
     }
 
+    private mergeRequestOptions(requestOptions: RequestOptions = {}): RequestOptions {
+        return {
+            ...this.requestOptions,
+            ...requestOptions,
+            headers: {
+                ...(this.requestOptions.headers ?? {}),
+                ...(requestOptions.headers ?? {})
+            }
+        };
+    }
+
 
     <%
     methods.foreach(method => {

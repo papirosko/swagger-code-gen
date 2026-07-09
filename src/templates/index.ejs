@@ -23,6 +23,7 @@ export interface RequestOptions {
     signal?: AbortSignal,
     apiPrefix?: string;
     headers?: Record<string, string>;
+    requestExecutor?: (request: Request) => Promise<Response>;
     preProcessRequest?: (request: Request) => Request | Promise<Request>;
     postProcessResponse?: (request: Request, response: Response) => Response | Promise<Response>;
 }
@@ -116,7 +117,8 @@ async function readResponseText(response: Response): Promise<string> {
 
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions, parseMode: ResponseParseMode = 'json'): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
-    const resp = await fetch(preProcessed);
+    const requestExecutor = requestOptions.requestExecutor ?? fetch;
+    const resp = await requestExecutor(preProcessed);
     const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
     if (postProcessed.ok) {
         if (parseMode === 'text') {

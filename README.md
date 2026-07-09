@@ -32,6 +32,32 @@ Cli parameters:
   style for all objects and create a service with methods for each endpoint.
 * `--targetNode` - adds imports for `node-fetch` package in generated code.
 
+## Custom request execution
+
+Generated clients accept `requestExecutor` in `RequestOptions`:
+
+```typescript
+const response = await findPetsByStatus('available', {
+  apiPrefix: 'https://petstore3.swagger.io/api/v3',
+  requestExecutor: (request) => fetch(request),
+});
+```
+
+When `--enableScats` is used, you can define it once in `ApiClient` constructor and override per call:
+
+```typescript
+const client = new ApiClient({
+  apiPrefix: 'https://petstore3.swagger.io/api/v3',
+  requestExecutor: (request) => fetch(request),
+});
+
+await client.findPetsByStatus(option('available'));
+
+await client.findPetsByStatus(option('pending'), {
+  requestExecutor: (request) => fetch(request),
+});
+```
+
 ## Tag filtering and schema pruning
 
 By default, tag filters affect only methods and all schemas are still generated:

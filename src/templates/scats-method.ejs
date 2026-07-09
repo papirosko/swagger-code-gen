@@ -33,8 +33,9 @@
         <%_ body.foreach(body => { -%>
         body: <%- body.body.scatsWrapperType %>,
         <%_ }); -%>
-        requestOptions: RequestOptions = this.requestOptions
+        requestOptions: RequestOptions = {}
     ): Promise<TryLike<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.asProperty.scatsWrapperType %><% } %>>> {
+        const mergedRequestOptions = this.mergeRequestOptions(requestOptions);
         return (await Try.promise(() =>
                 <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
                     <%_ if (!method.wrapParamsInObject) { -%>
@@ -65,7 +66,7 @@
                     body,
                     <%_ } -%>
                     <%_ }); -%>
-                    requestOptions
+                    mergedRequestOptions
                 )
             ))
             <%_ if (method.response.parseMode !== 'bytes') { _%>
