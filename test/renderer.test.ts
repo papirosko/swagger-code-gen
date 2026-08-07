@@ -211,7 +211,7 @@ describe('Renderer', () => {
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('Promise<TryLike<Option<any>>>');
-    expect(output).toContain('.map(res => option(res))');
+    expect(output).toContain('.map(res => option(res) as unknown as Option<any>)');
   });
 
   it('escapes reserved property names in scats DTO fields', async () => {
@@ -425,5 +425,254 @@ describe('Renderer', () => {
     expect(output).toContain('const cookieParams = [];');
     expect(output).toContain('cookieParams.push(`session_id=${encodeParamValue(session_id)}`);');
     expect(output).toContain('headers[\'Cookie\'] = headers[\'Cookie\'] ? `${headers[\'Cookie\']}; ${cookieParams.join(\'; \')}` : cookieParams.join(\'; \');');
+  });
+
+  it('renders wrapped scats union types in DTOs and methods', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Foo: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: {type: 'string'}
+            }
+          },
+          UnionCarrier: {
+            type: 'object',
+            properties: {
+              payload: {
+                anyOf: [
+                  {$ref: '#/components/schemas/Foo'},
+                  {type: 'string'},
+                  {type: 'null'}
+                ]
+              },
+              items: {
+                oneOf: [
+                  {
+                    type: 'array',
+                    items: {$ref: '#/components/schemas/Foo'}
+                  },
+                  {
+                    type: 'array',
+                    items: {type: 'string'}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {
+        '/union': {
+          post: {
+            operationId: 'submitUnion',
+            requestBody: {
+              required: false,
+              content: {
+                'application/json': {
+                  schema: {
+                    anyOf: [
+                      {$ref: '#/components/schemas/Foo'},
+                      {type: 'string'},
+                      {type: 'null'}
+                    ]
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/UnionCarrier'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly payload: Option<FooDto | string>,');
+    expect(output).toContain('readonly items: Collection<FooDto | string>,');
+    expect(output).toContain('body: Option<FooDto | string>,');
+    expect(output).toContain('body.map(value => scatsToJsonValue(value)).orUndefined,');
+    expect(output).toContain('\'payload\': this.payload.map(value => scatsToJsonValue(value)).orUndefined,');
+  });
+
+  it('renders scats response arrays of DTO refs with direct item mapping', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Pet: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: {type: 'string'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/pets': {
+          get: {
+            operationId: 'listPetsWrapped',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'array',
+                      items: {$ref: '#/components/schemas/Pet'}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('Promise<TryLike<Collection<PetDto>>>');
+    expect(output).toContain('.map(i => PetDto.fromJson(i))');
+    expect(output).toContain('as unknown as Collection<PetDto>');
+  });
+
+  it('renders scats mixed union responses as Option-wrapped branch unions', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Foo: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: {type: 'string'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/union-response': {
+          get: {
+            operationId: 'getUnionResponse',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      anyOf: [
+                        {$ref: '#/components/schemas/Foo'},
+                        {type: 'string'},
+                        {type: 'null'}
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('Promise<TryLike<Option<FooDto | string>>>');
+    expect(output).toContain('.map(res => option(res) as unknown as Option<FooDto | string>)');
+  });
+
+  it('renders inline-object response arrays without nonexistent fromJson calls', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          InlineCarrier: {
+            type: 'object',
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  oneOf: [
+                    {
+                      type: 'object',
+                      required: ['note'],
+                      properties: {
+                        note: {type: 'string'}
+                      }
+                    },
+                    {type: 'string'}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      paths: {
+        '/inline-array-response': {
+          get: {
+            operationId: 'getInlineArrayResponse',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/InlineCarrier'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly items: Collection<{ note: string } | string>,');
+    expect(output).toContain('as unknown as Collection<{ note: string } | string>');
+    expect(output).not.toContain('Collection<{ note: string } | string>.fromJson');
   });
 });

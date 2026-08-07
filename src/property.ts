@@ -94,6 +94,179 @@ export class Property implements Schema {
         return tokens.nonEmpty ? some(tokens.mkString(' | ')) : none;
     }
 
+    private static splitTopLevelIntersection(typeValue: string): string[] {
+        const tokens: string[] = [];
+        let current = '';
+        let angleDepth = 0;
+        let braceDepth = 0;
+        let parenDepth = 0;
+        let bracketDepth = 0;
+
+        for (const char of typeValue) {
+            switch (char) {
+                case '<':
+                    angleDepth += 1;
+                    current += char;
+                    break;
+                case '>':
+                    angleDepth = Math.max(0, angleDepth - 1);
+                    current += char;
+                    break;
+                case '{':
+                    braceDepth += 1;
+                    current += char;
+                    break;
+                case '}':
+                    braceDepth = Math.max(0, braceDepth - 1);
+                    current += char;
+                    break;
+                case '(':
+                    parenDepth += 1;
+                    current += char;
+                    break;
+                case ')':
+                    parenDepth = Math.max(0, parenDepth - 1);
+                    current += char;
+                    break;
+                case '[':
+                    bracketDepth += 1;
+                    current += char;
+                    break;
+                case ']':
+                    bracketDepth = Math.max(0, bracketDepth - 1);
+                    current += char;
+                    break;
+                case '&':
+                    if (angleDepth === 0 && braceDepth === 0 && parenDepth === 0 && bracketDepth === 0) {
+                        const trimmed = current.trim();
+                        if (trimmed.length > 0) {
+                            tokens.push(trimmed);
+                        }
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                    break;
+                default:
+                    current += char;
+                    break;
+            }
+        }
+
+        const trimmed = current.trim();
+        if (trimmed.length > 0) {
+            tokens.push(trimmed);
+        }
+        return tokens;
+    }
+
+    private static readonly primitiveLikeTypes = new Set([
+        'string',
+        'number',
+        'boolean',
+        'object',
+        'any',
+        'unknown',
+        'null',
+        'File',
+        'Blob',
+        'Buffer',
+        'ArrayBuffer',
+        'FormData'
+    ]);
+
+    private static collectScatsDtoRefs(definition: OpenApiProperty | undefined,
+                                       schemaTypes: HashMap<string, SchemaType>): Collection<string> {
+        const refs = new Set<string>();
+
+        const visit = (value: OpenApiProperty | OpenApiSchema | undefined) => {
+            if (value == null) {
+                return;
+            }
+            const ref = option(value.$ref)
+                .map(raw => raw.substring(SCHEMA_PREFIX.length))
+                .filter(name => schemaTypes.get(name).contains('object'));
+            if (ref.nonEmpty) {
+                refs.add(ref.get);
+            }
+
+            option((value as OpenApiProperty).items).foreach(item => visit(item));
+            option(value.oneOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
+            option(value.allOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
+            option(value.anyOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
+        };
+
+        visit(definition);
+        return Collection.from(Array.from(refs));
+    }
+
+    private static isLiteralVariant(typeValue: string): boolean {
+        return /^'.*'$/.test(typeValue) || /^".*"$/.test(typeValue) || /^-?\d+(\.\d+)?$/.test(typeValue) || typeValue === 'true' || typeValue === 'false';
+    }
+
+    private static isInlineObjectVariant(typeValue: string): boolean {
+        return typeValue.startsWith('{') && typeValue.endsWith('}');
+    }
+
+    private static arrayInnerType(typeValue: string): string | null {
+        const arrayMatch = typeValue.match(/^ReadonlyArray<(.+)>$/);
+        return arrayMatch?.[1] ?? null;
+    }
+
+    private static renderScatsIntersection(typeValue: string, scatsDtoRefs: Collection<string>): string {
+        const parts = Property.splitTopLevelIntersection(typeValue).map(part => Property.renderScatsVariant(part, scatsDtoRefs));
+        return [...new Set(parts)].join(' & ');
+    }
+
+    private static renderScatsVariant(typeValue: string, scatsDtoRefs: Collection<string>): string {
+        const arrayInner = Property.arrayInnerType(typeValue);
+        if (arrayInner != null) {
+            return `Collection<${Property.renderScatsType(arrayInner, false, false, scatsDtoRefs)}>`;
+        }
+        if (Property.isInlineObjectVariant(typeValue)) {
+            return typeValue;
+        }
+        if (typeValue.includes('&')) {
+            return Property.renderScatsIntersection(typeValue, scatsDtoRefs);
+        }
+        if (Property.primitiveLikeTypes.has(typeValue) || Property.isLiteralVariant(typeValue)) {
+            return typeValue;
+        }
+        return scatsDtoRefs.exists(ref => ref === typeValue) ? `${NameUtils.normaliseClassname(typeValue)}Dto` : typeValue;
+    }
+
+    private static renderScatsType(typeValue: string,
+                                   wrapNullableWithOption: boolean,
+                                   forceOuterOption = false,
+                                   scatsDtoRefs: Collection<string> = Nil): string {
+        const variants = Property.typeTokens(typeValue).distinct;
+        const hasNull = variants.exists(token => token === 'null');
+        const nonNullVariants = variants.filter(token => token !== 'null');
+
+        const arrayInners = nonNullVariants
+            .flatMapOption(token => option(Property.arrayInnerType(token)));
+        const areAllVariantsArrays = nonNullVariants.nonEmpty && arrayInners.size === nonNullVariants.size;
+
+        if (areAllVariantsArrays) {
+            const renderedInner = arrayInners
+                .flatMap(inner => Property.typeTokens(Property.renderScatsType(inner, false, false, scatsDtoRefs)))
+                .distinct
+                .mkString(' | ');
+            return `Collection<${renderedInner}>`;
+        }
+
+        const renderedVariants = nonNullVariants
+            .map(token => Property.renderScatsVariant(token, scatsDtoRefs))
+            .flatMap(token => Property.typeTokens(token))
+            .distinct
+            .mkString(' | ');
+
+        if (hasNull || forceOuterOption) {
+            return wrapNullableWithOption ? `Option<${renderedVariants}>` : `${renderedVariants} | null`;
+        }
+        return renderedVariants;
+    }
+
     constructor(readonly name: string,
                 readonly type: string,
                 readonly format: Option<string>,
@@ -106,6 +279,7 @@ export class Property implements Schema {
                 readonly itemReferencesObject: boolean,
                 readonly enumValues: Option<Collection<string>>,
                 readonly inPlace: Option<OpenApiSchema>,
+                readonly scatsDtoRefs: Collection<string>,
                 readonly safeName?: string) {
     }
 
@@ -124,6 +298,7 @@ export class Property implements Schema {
             option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
             option(p.enumValues).getOrElseValue(this.enumValues),
             option(p.inPlace).getOrElseValue(this.inPlace),
+            option(p.scatsDtoRefs).getOrElseValue(this.scatsDtoRefs),
             option(p.safeName).orElse(() => option(this.safeName)).orUndefined,
         );
     }
@@ -247,9 +422,10 @@ export class Property implements Schema {
             .getOrElseValue('any');
 
         const enumValues = option(definition.enum).map(x => Collection.from(x));
+        const scatsDtoRefs = Property.collectScatsDtoRefs(definition, schemaTypes);
 
         return new Property(name, type, option(definition.format), description, null, nullable, required,
-            items, referencesObject, itemReferencesObject, enumValues, inplace);
+            items, referencesObject, itemReferencesObject, enumValues, inplace, scatsDtoRefs);
     }
 
     private static definitionToTypeString(
@@ -455,16 +631,15 @@ export class Property implements Schema {
      */
     get itemScatsWrapperType(): string {
         if (this.isArray) {
-            if (this.itemReferencesObject) {
-                const cls = NameUtils.normaliseClassname(this.items);
-                return `${cls}Dto`;
-            } else {
-                return Property.toJsType(this.items);
-            }
+            return Property.renderScatsType(Property.toJsType(this.items), false, false, this.scatsDtoRefs);
 
         } else {
             return this.scatsWrapperType;
         }
+    }
+
+    get itemScatsWrapperTypeHasFromJson(): boolean {
+        return this.itemReferencesObject && this.itemScatsWrapperType.endsWith('Dto');
     }
 
     /**
@@ -481,39 +656,24 @@ export class Property implements Schema {
      * - schema { type=array, ref=number, nullable=true } => Collection<number>
      */
     get scatsWrapperType(): string {
-
-        if (this.referencesObject) {
-            const cls = NameUtils.normaliseClassname(this.type);
-            return !this.nullable && this.required ? `${cls}Dto` : `Option<${cls}Dto>`;
-        } else if (this.isArray) {
-            if (this.itemReferencesObject) {
-                const cls = NameUtils.normaliseClassname(this.items);
-                return `Collection<${cls}Dto>`;
-            } else {
-                return `Collection<${Property.toJsType(this.items)}>`;
-            }
-        } else {
-            let jsType = Property.toJsType(this.type, this.items, this.format);
+        let jsType = this.jsType;
+        if (this.enumValues.exists(x => x.nonEmpty)) {
             const typeTokens = Property.typeTokens(this.type);
             const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
-            if (this.enumValues.exists(x => x.nonEmpty)) {
-                jsType = this.enumValues.get
-                    .filter(v => v != null)
-                    .map(enumValue => {
-                        if (isStringLike) {
-                            return `'${enumValue}'`;
-                        } else {
-                            return enumValue;
-                        }
-                    })
-                    .mkString(' | ');
+            jsType = this.enumValues.get
+                .filter(v => v != null)
+                .map(enumValue => {
+                    if (isStringLike) {
+                        return `'${enumValue}'`;
+                    } else {
+                        return enumValue;
+                    }
+                })
+                .mkString(' | ');
+            if (this.nullable || Property.typeTokens(this.type).exists(t => t === 'null')) {
+                jsType = `${jsType} | null`;
             }
-            jsType = [...new Set(Property.typeTokens(jsType).toArray.map(t => {
-                switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
-            }))]
-                .filter(t => t !== 'null')
-                .join(' | ');
-            return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }
+        return Property.renderScatsType(jsType, true, this.nullable || !this.required, this.scatsDtoRefs);
     }
 }

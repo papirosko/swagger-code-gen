@@ -302,7 +302,7 @@ describe('components parsing - schemas', () => {
                           required: ['type', 'tool_name'],
                           properties: {
                             type: { type: 'string' },
-                            tool_name: { type: 'string' }
+                            'tool_name': { type: 'string' }
                           }
                         }
                       ]
@@ -322,6 +322,6 @@ describe('components parsing - schemas', () => {
     const container = schemas.get('NestedUnionContainer').get as SchemaObject;
     const content = container.properties.find(p => p.name === 'content').get as Property;
 
-    expect(content.jsType).toBe("string | ReadonlyArray<string | { type: string; tool_name: string }>");
+    expect(content.jsType).toBe('string | ReadonlyArray<string | { type: string; tool_name: string }>');
   });
 });

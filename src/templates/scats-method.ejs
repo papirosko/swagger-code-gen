@@ -49,18 +49,12 @@
                     <%_ if (body.schemaType === 'object') { _%>
                     body.toJson,
                     <%_ } else if (body.schemaType === 'property') { _%>
-                    <%_ if (body.isArray && body.itemReferencesObject) { _%>
-                    body.map(_ => _.toJson).toArray,
-                    <%_ } else if (body.isArray && !body.itemReferencesObject) { -%>
-                    body.toArray,
-                    <%_ } else if (body.referencesObject && !body.required) { -%>
-                    body.map(b => b.toJson).orUndefined,
-                    <%_ } else if (body.referencesObject) { -%>
-                    body.toJson,
+                    <%_ if (body.isArray) { _%>
+                    body.map(value => scatsToJsonValue(value)).toArray,
                     <%_ } else if (!body.required) { -%>
-                    body.orUndefined,
+                    body.map(value => scatsToJsonValue(value)).orUndefined,
                     <%_ } else { -%>
-                    body,
+                    scatsToJsonValue(body),
                     <%_ } -%>
                     <%_ } else { -%>
                     body,
@@ -77,19 +71,15 @@
             .map(res => option(res).map(r => <%- method.response.asProperty.normalType %>Dto.fromJson(r)))
             <%_ } _%>
             <%_ } else if (method.response.asProperty.isArray) { _%>
-            <%_ if (method.response.asProperty.required && !method.response.asProperty.nullable) { _%>
-            .map(res => Collection.from(option(res).getOrElseValue([])))
-            <%_ if (method.response.asProperty.itemReferencesObject) { _%>
-            .map(items => items.map(i => <%- method.response.asProperty.itemScatsWrapperType %>.fromJson(i)))
+            .map(res => (Collection.from(option(res).getOrElseValue([]))
+            <%_ if (method.response.asProperty.itemScatsWrapperTypeHasFromJson) { _%>
+            .map(i => <%- method.response.asProperty.itemScatsWrapperType %>.fromJson(i))
             <%_ } _%>
-            <%_ } else { _%>
-            .map(res => option(res).map(itemsRaw => Collection.from(option(itemsRaw).getOrElseValue([]))))
-            <%_ if (method.response.asProperty.itemReferencesObject) { _%>
-            .map(items => items.map(rawItems => rawItems.map(i => <%- method.response.asProperty.itemScatsWrapperType %>.fromJson(i))))
-            <%_ } _%>
-            <%_ } _%>
+            ) as unknown as <%- method.response.asProperty.scatsWrapperType %>)
             <%_ } else if (!method.response.asProperty.required || method.response.asProperty.nullable) { _%>
-            .map(res => option(res))
+            .map(res => option(res) as unknown as <%- method.response.asProperty.scatsWrapperType %>)
+            <%_ } else { _%>
+            .map(res => res as unknown as <%- method.response.asProperty.scatsWrapperType %>)
             <%_ } _%>;
             <%_ } else { _%>;
             <%_ } _%>
