@@ -48,6 +48,10 @@ function valueToString(value: any): string {
     }
 }
 
+function encodeParamValue(value: any): string {
+    return encodeURIComponent(valueToString(value));
+}
+
 /**
  * Helper to serialize data for 'multipart/form-data'
  */

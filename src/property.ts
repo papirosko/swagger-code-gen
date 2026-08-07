@@ -9,6 +9,91 @@ export class Property implements Schema {
 
     readonly schemaType = 'property';
 
+    private static splitTopLevelUnion(typeValue: string): string[] {
+        const tokens: string[] = [];
+        let current = '';
+        let angleDepth = 0;
+        let braceDepth = 0;
+        let parenDepth = 0;
+        let bracketDepth = 0;
+
+        for (const char of typeValue) {
+            switch (char) {
+                case '<':
+                    angleDepth += 1;
+                    current += char;
+                    break;
+                case '>':
+                    angleDepth = Math.max(0, angleDepth - 1);
+                    current += char;
+                    break;
+                case '{':
+                    braceDepth += 1;
+                    current += char;
+                    break;
+                case '}':
+                    braceDepth = Math.max(0, braceDepth - 1);
+                    current += char;
+                    break;
+                case '(':
+                    parenDepth += 1;
+                    current += char;
+                    break;
+                case ')':
+                    parenDepth = Math.max(0, parenDepth - 1);
+                    current += char;
+                    break;
+                case '[':
+                    bracketDepth += 1;
+                    current += char;
+                    break;
+                case ']':
+                    bracketDepth = Math.max(0, bracketDepth - 1);
+                    current += char;
+                    break;
+                case '|':
+                    if (angleDepth === 0 && braceDepth === 0 && parenDepth === 0 && bracketDepth === 0) {
+                        const trimmed = current.trim();
+                        if (trimmed.length > 0) {
+                            tokens.push(trimmed);
+                        }
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                    break;
+                default:
+                    current += char;
+                    break;
+            }
+        }
+
+        const trimmed = current.trim();
+        if (trimmed.length > 0) {
+            tokens.push(trimmed);
+        }
+        return tokens;
+    }
+
+    private static typeTokens(typeValue?: string | string[]): Collection<string> {
+        return option(typeValue)
+            .map(value => Array.isArray(value) ? Collection.from(value) : Collection.from(Property.splitTopLevelUnion(value)))
+            .getOrElseValue(Nil)
+            .map(token => token.trim())
+            .filter(token => token.length > 0);
+    }
+
+    private static hasType(definition: OpenApiProperty | undefined, expectedType: string): boolean {
+        return Property.typeTokens(definition?.type).exists(token => token === expectedType);
+    }
+
+    private static normalizedDefinitionType(typeValue: string | string[] | undefined, excludeNull: boolean): Option<string> {
+        const tokens = Property.typeTokens(typeValue)
+            .filter(token => !excludeNull || token !== 'null')
+            .distinct;
+        return tokens.nonEmpty ? some(tokens.mkString(' | ')) : none;
+    }
+
     constructor(readonly name: string,
                 readonly type: string,
                 readonly format: Option<string>,
@@ -63,13 +148,13 @@ export class Property implements Schema {
                 .flatMap(i => option(i.$ref))
                 .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
             option(definition.items).exists(i =>
-                option(i.type).contains('object') &&
+                Property.hasType(i, 'object') &&
                 option(i.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0);
 
         let inplace = none;
         const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
-                if (definition.type === 'object' && option(definition.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0) {
+                if (Property.hasType(definition, 'object') && option(definition.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0) {
                     // inplace object
                     inplace = some(definition);
                     return some(parentClassname + '$' + name);
@@ -105,7 +190,7 @@ export class Property implements Schema {
                     .filter(x => x.nonEmpty)
                     .map(x => {
                         return x
-                            .filter(t => t.type !== 'null')
+                            .filter(t => !Property.hasType(t as OpenApiProperty, 'null'))
                             .flatMapOption(oneOfItem =>
                                 Property.definitionToTypeString(oneOfItem as OpenApiProperty, schemaTypes, options)
                                     .map(typeValue => Property.finalizeResolvedType(typeValue, oneOfItem as OpenApiProperty))
@@ -121,15 +206,16 @@ export class Property implements Schema {
                     return none;
                 }
             })
-            .orElse(() => option(definition.type))
+            .orElse(() => Property.normalizedDefinitionType(definition.type, true))
             .getOrElseValue('any');
 
         const nullable = option(definition.nullable).contains(true) ||
+            Property.hasType(definition, 'null') ||
             (referencesObject && options.referencedObjectsNullableByDefault && !option(definition.nullable).contains(false)) ||
             option(definition.anyOf)
                 .map(x => Collection.from(x))
                 .filter(x => x.nonEmpty)
-                .exists(anyOf => anyOf.exists(t => t.type === 'null'))
+                .exists(anyOf => anyOf.exists(t => Property.hasType(t as OpenApiProperty, 'null')))
         ;
 
         const description = option(definition.description);
@@ -139,14 +225,14 @@ export class Property implements Schema {
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
-                if (definition.type === 'array' && option(definition.items).exists(i => i.type === 'object')) {
+                if (Property.hasType(definition, 'array') && option(definition.items).exists(i => Property.hasType(i, 'object'))) {
                     inplace = some(definition.items);
                     return some(parentClassname + '$' + name);
                 } else {
                     return none;
                 }
             })
-            .orElseValue(option(definition.items?.type))
+            .orElse(() => Property.normalizedDefinitionType(definition.items?.type, false))
             .orElse(() =>
                 option(definition.items?.oneOf)
                     .map(x => Collection.from(x))
@@ -198,9 +284,9 @@ export class Property implements Schema {
                     .map(items => Collection.from(items))
                     .filter(items => items.nonEmpty)
                     .map(items => {
-                        const includesNull = items.exists(item => item.type === 'null');
+                        const includesNull = items.exists(item => Property.hasType(item as OpenApiProperty, 'null'));
                         const base = items
-                            .filter(item => item.type !== 'null')
+                            .filter(item => !Property.hasType(item as OpenApiProperty, 'null'))
                             .flatMapOption(item => Property.definitionToTypeString(item as OpenApiProperty, schemaTypes, options))
                             .distinct
                             .mkString(' | ');
@@ -208,13 +294,13 @@ export class Property implements Schema {
                     })
             )
             .orElse(() => {
-                if (definition.type === 'object' && option(definition.properties).map(props => Object.keys(props).length).getOrElseValue(0) > 0) {
+                if (Property.hasType(definition, 'object') && option(definition.properties).map(props => Object.keys(props).length).getOrElseValue(0) > 0) {
                     return some(Property.objectDefinitionToLiteral(definition, schemaTypes, options));
                 }
                 return none;
             })
             .orElse(() => {
-                if (definition.type === 'array') {
+                if (Property.hasType(definition, 'array')) {
                     const itemType = option(definition.items)
                         .flatMap(item => Property.definitionToTypeString(item, schemaTypes, options)
                             .map(typeValue => Property.finalizeResolvedType(typeValue, item)))
@@ -223,7 +309,9 @@ export class Property implements Schema {
                 }
                 return none;
             })
-            .orElse(() => option(definition.type));
+            .orElse(() => {
+                return Property.normalizedDefinitionType(definition.type, false);
+            });
     }
 
     private static finalizeResolvedType(typeValue: string, definition?: OpenApiProperty): string {
@@ -268,8 +356,7 @@ export class Property implements Schema {
 
     get jsType(): string {
         let res = Property.toJsType(this.type, this.items, this.format);
-        const typeTokens = Collection.from(Array.isArray(this.type) ? this.type : this.type.split('|'))
-            .map(t => t.trim());
+        const typeTokens = Property.typeTokens(this.type);
         const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
         const isNullableType = this.nullable || typeTokens.exists(t => t === 'null');
         if (this.enumValues.exists(x => x.nonEmpty)) {
@@ -288,7 +375,7 @@ export class Property implements Schema {
             res = res + ' | null';
         }
         // Deduplicate union members (e.g. multiple inline objects resolving to 'object')
-        res = [...new Set(res.split(' | ').map(t => {
+        res = [...new Set(Property.typeTokens(res).toArray.map(t => {
             switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
         }))].join(' | ');
         return res;
@@ -304,11 +391,11 @@ export class Property implements Schema {
     }
 
     static toJsType(tpe: string, itemTpe = 'any', format: Option<string> = none): string {
-        return option(tpe)
-            .map(x => Array.isArray(x) ? Collection.from(x) : Collection.from(x.split('|')))
-            .getOrElseValue(Nil)
-            .map(x => x.trim())
+        return Property.typeTokens(tpe)
             .map(t => {
+                if (t.includes('{') || t.includes('<') || t.includes('&')) {
+                    return t;
+                }
                 switch (t) {
                     case 'Boolean':
                     case 'boolean':
@@ -407,8 +494,7 @@ export class Property implements Schema {
             }
         } else {
             let jsType = Property.toJsType(this.type, this.items, this.format);
-            const typeTokens = Collection.from(Array.isArray(this.type) ? this.type : this.type.split('|'))
-                .map(t => t.trim());
+            const typeTokens = Property.typeTokens(this.type);
             const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
             if (this.enumValues.exists(x => x.nonEmpty)) {
                 jsType = this.enumValues.get
@@ -422,7 +508,7 @@ export class Property implements Schema {
                     })
                     .mkString(' | ');
             }
-            jsType = [...new Set(jsType.split(' | ').map(t => {
+            jsType = [...new Set(Property.typeTokens(jsType).toArray.map(t => {
                 switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
             }))]
                 .filter(t => t !== 'null')

@@ -251,4 +251,77 @@ describe('components parsing - schemas', () => {
     expect(scalarOrArray.schemaType).toBe('property');
     expect(scalarOrArray.jsType).toBe('string | ReadonlyArray<number>');
   });
+
+  it('supports OpenAPI 3.1 type arrays with nullability', () => {
+    const openApi31Spec = {
+      components: {
+        schemas: {
+          NullableString: {
+            type: ['string', 'null']
+          },
+          NullableStringArray: {
+            type: ['array', 'null'],
+            items: {
+              type: ['integer', 'null']
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(openApi31Spec);
+    const schemas = resolveSchemas(openApi31Spec, types, emptyOptions);
+    const nullableString = schemas.get('NullableString').get as Property;
+    const nullableStringArray = schemas.get('NullableStringArray').get as Property;
+
+    expect(nullableString.schemaType).toBe('property');
+    expect(nullableString.jsType).toBe('string | null');
+    expect(nullableStringArray.schemaType).toBe('property');
+    expect(nullableStringArray.jsType).toBe('ReadonlyArray<number | null> | null');
+  });
+
+  it('preserves nested array unions inside inline object members', () => {
+    const nestedUnionSpec = {
+      components: {
+        schemas: {
+          NestedUnionContainer: {
+            type: 'object',
+            required: ['content'],
+            properties: {
+              content: {
+                anyOf: [
+                  { type: 'string' },
+                  {
+                    type: 'array',
+                    items: {
+                      oneOf: [
+                        { type: 'string' },
+                        {
+                          type: 'object',
+                          required: ['type', 'tool_name'],
+                          properties: {
+                            type: { type: 'string' },
+                            tool_name: { type: 'string' }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(nestedUnionSpec);
+    const schemas = resolveSchemas(nestedUnionSpec, types, emptyOptions);
+    const container = schemas.get('NestedUnionContainer').get as SchemaObject;
+    const content = container.properties.find(p => p.name === 'content').get as Property;
+
+    expect(content.jsType).toBe("string | ReadonlyArray<string | { type: string; tool_name: string }>");
+  });
 });

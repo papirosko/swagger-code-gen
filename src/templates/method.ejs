@@ -16,7 +16,7 @@
  * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
- * @return {<%= method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType %>} <%= method.response.description %>
+ * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType) %>} <%= method.response.description %>
  */
 export async function <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
     <%_ if (!method.wrapParamsInObject) { -%>
@@ -34,33 +34,57 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     body<%= body.get.body.required ? '' : '?'%>: <%- body.get.body.jsType %>,
     <%_ } -%>
     requestOptions: RequestOptions = defReqOpts()
-): Promise<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>> {
+): Promise<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
     const queryParams = [];
     <%_ method.parameters.filter(x => x.in === 'query' && x.required).foreach(p => { -%>
-    <%_ if (p.jsType === 'string') { -%>
-    queryParams.push(`<%= p.rawName %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
+    <%_ if (p.isArray) { -%>
+    <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
+        queryParams.push(`<%= p.rawName %>=${encodeParamValue(p)}`);
+    });
     <%_ } else { -%>
-    queryParams.push(`<%= p.rawName %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
+    queryParams.push(`<%= p.rawName %>=${encodeParamValue(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
     <%_ }  -%>
     <%_ }) -%>
     <%_ method.parameters.filter(x => x.in === 'query' && !x.required).foreach(p => { -%>
     if (<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> !== undefined) {
         <%_ if (p.isArray) { -%>
         <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
-            queryParams.push(`<%= p.rawName %>=${p}`);
+            queryParams.push(`<%= p.rawName %>=${encodeParamValue(p)}`);
         });
-        <%_ } else if (p.jsType === 'string') { -%>
-        queryParams.push(`<%= p.rawName %>=${encodeURIComponent(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
         <%_ } else { -%>
-        queryParams.push(`<%= p.rawName %>=${<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>}`);
+        queryParams.push(`<%= p.rawName %>=${encodeParamValue(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
         <%_ }  -%>
     }
     <%_ }) -%>
     if (queryParams.length > 0) {
         query = '?' + queryParams.join('&');
     }
+    <%_ }  -%>
+
+    <%_ if (method.parameters.filter(x => x.in === 'cookie').nonEmpty) { -%>
+    const cookieParams = [];
+    <%_ method.parameters.filter(x => x.in === 'cookie' && x.required).foreach(p => { -%>
+    <%_ if (p.isArray) { -%>
+    <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
+        cookieParams.push(`<%= p.rawName %>=${encodeParamValue(p)}`);
+    });
+    <%_ } else { -%>
+    cookieParams.push(`<%= p.rawName %>=${encodeParamValue(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
+    <%_ }  -%>
+    <%_ }) -%>
+    <%_ method.parameters.filter(x => x.in === 'cookie' && !x.required).foreach(p => { -%>
+    if (<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> !== undefined) {
+        <%_ if (p.isArray) { -%>
+        <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
+            cookieParams.push(`<%= p.rawName %>=${encodeParamValue(p)}`);
+        });
+        <%_ } else { -%>
+        cookieParams.push(`<%= p.rawName %>=${encodeParamValue(<%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>)}`);
+        <%_ }  -%>
+    }
+    <%_ }) -%>
     <%_ }  -%>
 
     let bodySerialised: BodyInit | null = null;
@@ -74,7 +98,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     bodySerialised = body ?? null;
     <%_ }  -%>
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
         ...requestOptions.headers || {},
         'Accept': '<%= method.response.mimeType %>',
         <%_ if (body.nonEmpty && body.get.mimeType !== 'multipart/form-data') {%>
@@ -93,6 +117,11 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') {%>
     delete headers['Content-Type'];
     <%_ }  -%>
+    <%_ if (method.parameters.filter(x => x.in === 'cookie').nonEmpty) { -%>
+    if (cookieParams.length > 0) {
+        headers['Cookie'] = headers['Cookie'] ? `${headers['Cookie']}; ${cookieParams.join('; ')}` : cookieParams.join('; ');
+    }
+    <%_ }  -%>
 
 
     const request = new Request(`${requestOptions.apiPrefix}<%- method.pathWithSubstitutions %>${query}`, {
@@ -101,5 +130,5 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         signal: requestOptions.signal,
         headers: headers
     });
-    return requestImpl<<% if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>>(request, requestOptions, '<%= method.response.parseMode %>');
+    return requestImpl<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>>(request, requestOptions, '<%= method.response.parseMode %>');
 }

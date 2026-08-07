@@ -321,6 +321,109 @@ describe('Renderer', () => {
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export async function getKeywords(');
     expect(output).toContain('$function: string,');
-    expect(output).toContain('queryParams.push(`function=${encodeURIComponent($function)}`);');
+    expect(output).toContain('queryParams.push(`function=${encodeParamValue($function)}`);');
+  });
+
+  it('renders void responses for no-content operations', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/jobs/{jobId}': {
+          delete: {
+            operationId: 'deleteJob',
+            parameters: [
+              {
+                in: 'path',
+                name: 'jobId',
+                required: true,
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              204: {
+                description: 'deleted'
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('export async function deleteJob(');
+    expect(output).toContain('jobId: string,');
+    expect(output).toContain('): Promise<void>');
+    expect(output).toContain('Promise<TryLike<void>>');
+    expect(output).toContain('`${requestOptions.apiPrefix}/jobs/${encodeURIComponent(String(jobId))}${query}`');
+  });
+
+  it('renders cookie params and encoded repeated query params', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/reports': {
+          get: {
+            operationId: 'getReports',
+            parameters: [
+              {
+                in: 'query',
+                name: 'ids',
+                required: true,
+                schema: {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              },
+              {
+                in: 'cookie',
+                name: 'session_id',
+                required: false,
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('ids.forEach(p => {');
+    expect(output).toContain('queryParams.push(`ids=${encodeParamValue(p)}`);');
+    expect(output).toContain('const cookieParams = [];');
+    expect(output).toContain('cookieParams.push(`session_id=${encodeParamValue(session_id)}`);');
+    expect(output).toContain('headers[\'Cookie\'] = headers[\'Cookie\'] ? `${headers[\'Cookie\']}; ${cookieParams.join(\'; \')}` : cookieParams.join(\'; \');');
   });
 });

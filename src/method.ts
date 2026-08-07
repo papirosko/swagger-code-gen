@@ -20,6 +20,7 @@ export interface ResponseDetails {
     description?: string;
     mimeType: string;
     parseMode: 'json' | 'text' | 'bytes';
+    noContent: boolean;
 }
 
 
@@ -264,9 +265,19 @@ export class Method {
             .getOrElseValue('application/json');
         const responseParseMode = Method.parseModeByMimeType(responseMimeType);
 
-        this.response = mimeTypes.get(responseMimeType)
-            .filter(p => option(p.schema).isDefined || responseParseMode === 'text' || responseParseMode === 'bytes')
-            .map(p => {
+        if (mimeTypes.isEmpty) {
+            this.response = {
+                asProperty: Property.fromDefinition('', 'UNKNOWN', {type: 'any'}, schemasTypes, options),
+                responseType: 'void',
+                description: respDef.description,
+                mimeType: responseMimeType,
+                parseMode: responseParseMode,
+                noContent: true,
+            } as ResponseDetails;
+        } else {
+            this.response = mimeTypes.get(responseMimeType)
+                .filter(p => option(p.schema).isDefined || responseParseMode === 'text' || responseParseMode === 'bytes')
+                .map(p => {
                 const responseSchema = p.schema;
 
                 if (responseParseMode === 'bytes') {
@@ -280,6 +291,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        noContent: false,
                         rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
@@ -295,6 +307,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        noContent: false,
                         rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
@@ -324,6 +337,7 @@ export class Method {
                         inPlace: responseSchema,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        noContent: false,
                         rawSchema: responseSchema,
                     } as ResponseDetails;
 
@@ -338,16 +352,19 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        noContent: false,
                         rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
             })
-            .getOrElseValue(({
-                asProperty: Property.fromDefinition('', 'UNKNOWN', {type: 'any'}, schemasTypes, options),
-                responseType: 'any',
-                mimeType: responseMimeType,
-                parseMode: responseParseMode,
-            }));
+                .getOrElseValue(({
+                    asProperty: Property.fromDefinition('', 'UNKNOWN', {type: 'any'}, schemasTypes, options),
+                    responseType: 'any',
+                    mimeType: responseMimeType,
+                    parseMode: responseParseMode,
+                    noContent: false,
+                }));
+        }
 
 
         this.wrapParamsInObject = this.parameters.size > 2 || (this.body.nonEmpty) && this.parameters.nonEmpty;

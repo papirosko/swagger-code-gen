@@ -1,5 +1,5 @@
 export interface OpenApiProperty {
-    type?: string;
+    type?: string | string[];
     format?: string;
     description?: string;
     nullable?: boolean;
@@ -27,7 +27,7 @@ export interface OpenApiSchema {
     readonly name?: string;
     readonly title?: string;
     readonly description?: string;
-    readonly type?: string;
+    readonly type?: string | string[];
     readonly format?: string;
     readonly nullable?: boolean;
     enum?: string[];
@@ -41,7 +41,7 @@ export interface OpenApiSchema {
 export interface OpenApiParam {
     name: string;
     in: string;
-    type?: string;
+    type?: string | string[];
     description?: string;
     required?: boolean;
     deprecated?: boolean;

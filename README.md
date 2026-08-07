@@ -30,7 +30,15 @@ Cli parameters:
   (which is default in .net world: asp generates wrong spec)
 * `--enableScats` - generate additional wrappers in [scats](https://www.npmjs.com/package/scats) 
   style for all objects and create a service with methods for each endpoint.
-* `--targetNode` - adds imports for `node-fetch` package in generated code.
+* `--targetNode` - adds imports for `node-fetch` and `form-data` in generated code.
+
+## Runtime notes
+
+- `--targetNode` generated clients expect the consumer runtime to provide `node-fetch` and `form-data`.
+- Browser-targeted clients return `ArrayBuffer` for binary responses; `--targetNode` clients return `Buffer`.
+- Successful `204`, `205`, and `304` responses are treated as no-content and resolve to `undefined`/`void`.
+- JSON responses are parsed only when the response body is present; empty successful bodies do not throw JSON parsing errors.
+- Cookie parameters are rendered into the `Cookie` request header. In browsers this header may be restricted by the runtime; use your own `requestExecutor` when you need environment-specific auth/cookie behavior.
 
 ## Custom request execution
 

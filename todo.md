@@ -33,18 +33,18 @@
 - [x] Encode path parameters safely
   - Apply `encodeURIComponent` to path substitutions, not only query params.
 
-- [ ] Better response parsing strategy
+- [x] Better response parsing strategy
   - [x] Handle `204 No Content` explicitly.
   - [x] Avoid relying only on `content-length`.
   - [x] Respect `content-type` more strictly for `json | text | bytes` parsing.
-  - [ ] Align generated return types for no-content responses (e.g. `Promise<void>`).
+  - [x] Align generated return types for no-content responses (e.g. `Promise<void>`).
 
 - [ ] Stronger support for cookies and auth schemes
-  - Generate cookie parameter handling.
+  - [x] Generate cookie parameter handling.
   - Parse `securitySchemes` and generate helpers for bearer/basic/api-key auth.
 
 - [ ] Better multipart typing in Node/browser targets
-  - Document runtime deps for `--targetNode` more clearly.
+  - [x] Document runtime deps for `--targetNode` more clearly.
   - Revisit `File` / `Blob` / `Buffer` handling across environments.
 
 - [ ] Improve schema composition support

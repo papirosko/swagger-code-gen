@@ -19,6 +19,22 @@ export interface GenerationOptions {
 
 export class SchemaFactory {
 
+    private static hasType(def: OpenApiSchema | OpenApiProperty, expectedType: string): boolean {
+        const typeValue = def.type;
+        if (Array.isArray(typeValue)) {
+            return typeValue.includes(expectedType);
+        }
+        return typeValue === expectedType;
+    }
+
+    private static firstNonNullType(def: OpenApiSchema): string | undefined {
+        const typeValue = def.type;
+        if (Array.isArray(typeValue)) {
+            return typeValue.find(token => token !== 'null');
+        }
+        return typeValue;
+    }
+
     static isEmptyObjectOrArray(x: any) {
         if (Array.isArray(x) && x.length === 0) return true;
         if (typeof x === 'object' && Object.keys(x).length === 0) return true;
@@ -26,7 +42,7 @@ export class SchemaFactory {
     }
 
     static resolveSchemaType(def: OpenApiSchema): SchemaType {
-        if (def.type === 'object' ||
+        if (SchemaFactory.hasType(def, 'object') ||
             option(def.properties).exists(p => Object.keys(p).length > 0) ||
             option(def.allOf).exists(x => x.length > 0)  ||
             SchemaFactory.isEmptyObjectOrArray(def)
@@ -44,32 +60,33 @@ export class SchemaFactory {
                  def: OpenApiSchema,
                  schemasTypes: HashMap<string, SchemaType>,
                  options: GenerationOptions): Schema {
-        if (def.type === 'object' ||
+        const primaryType = SchemaFactory.firstNonNullType(def);
+        if (SchemaFactory.hasType(def, 'object') ||
             option(def.properties).exists(p => Object.keys(p).length > 0) ||
             schemasTypes.get(name).contains('object')
         ) {
             return SchemaObject.fromDefinition(name, def, schemasTypes, options, HashMap.empty);
         } else if (def.enum) {
             return SchemaEnum.fromDefinition(name, def);
-        } else if (def.type === 'string') {
+        } else if (primaryType === 'string') {
             return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
-        } else if (def.type === 'boolean') {
+        } else if (primaryType === 'boolean') {
             return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
-        } else if (def.type === 'integer') {
+        } else if (primaryType === 'integer') {
             return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
                     .map(x => x as boolean).orUndefined
             }, schemasTypes, options);
-        } else if (def.type === 'array') {
+        } else if (primaryType === 'array') {
             return Property.fromDefinition('', name, {
                 ...def as OpenApiProperty,
                 required: option(def.required).filter(x => typeof x === 'boolean')
@@ -101,11 +118,12 @@ export class SchemaEnum implements Schema {
     }
 
     static fromDefinition(name: string, def: OpenApiSchema) {
+        const typeValue = Array.isArray(def.type) ? def.type.find(token => token !== 'null') : def.type;
         return new SchemaEnum(
             name,
             def.title ?? name,
             option(def.description),
-            def.type ?? 'string',
+            typeValue ?? 'string',
             option(def.default),
             option(def.enum).map(Collection.from).getOrElseValue(Nil)
         );
@@ -254,7 +272,8 @@ export class SchemaObject implements Schema {
             });
         });
 
-        return new SchemaObject(name, def.title ?? name, def.type ?? 'object', properties,
+        const typeValue = Array.isArray(def.type) ? def.type.find(token => token !== 'null') : def.type;
+        return new SchemaObject(name, def.title ?? name, typeValue ?? 'object', properties,
             parents.toMap(p => [p, pool.get(p).getOrElseThrow(() => new Error(`No parent schema for ${p}`)) as SchemaObject]),
             explicitlyRequired);
     }
