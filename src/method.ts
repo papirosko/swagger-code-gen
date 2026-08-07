@@ -158,7 +158,9 @@ export class Method {
             .map(body => {
                 const bodyRequired = option(def.requestBody?.required).contains(true);
                 const mimeTypes = Collection.from(Object.keys(body));
-                const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
+                const supportedMimeTypes = mimeTypes.filter(mt =>
+                    supportedBodyMimeTypes.containsKey(mt) && option(body[mt]?.schema).isDefined
+                );
                 return supportedMimeTypes.map(mt => {
                     const bodyEntry = body[mt];
                     if (!bodyEntry) {

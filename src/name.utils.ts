@@ -100,7 +100,7 @@ export class NameUtils {
 
 
     static normaliseMethodName(n: string): string {
-        return NameUtils.escapeIdentifier(n.replace(/[./]/g, '_'));
+        return NameUtils.escapeIdentifier(n.replace(/[^A-Za-z0-9_$]/g, '_'));
     }
 
 

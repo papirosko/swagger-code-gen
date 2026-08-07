@@ -1,9 +1,13 @@
+<%_ const sanitizeDocLine = (line) => String(line).replace(/\*\//g, '*\\/');
+const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => ` * ${sanitizeDocLine(line)}`); -%>
 <%_ if (schema.schemaType === 'object') { -%>
 export interface <%= schema.normalName %><%- schema.parentsString%> {
     <%_ schema.properties.foreach(p => { -%>
     <%_ p.description.foreach(d => { -%>
     /**
-     * <%= d %>
+<%_ renderDocLines(d).forEach(line => { -%>
+    <%= line %>
+<%_ }); -%>
      */
     <%_ }); -%>
     readonly '<%= p.name %>'<%= !p.required ? '?' : '' %>: <%- p.jsType %>;
@@ -12,7 +16,9 @@ export interface <%= schema.normalName %><%- schema.parentsString%> {
 <%_ } if (schema.schemaType === 'enum') { -%>
 <%_ schema.description.foreach(d => { -%>
 /**
- * <%= d %>
+<%_ renderDocLines(d).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
  */
 <%_ }); -%>
 <%_ const isValidIdent = (s) => typeof s === 'string' && /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(s);
@@ -30,7 +36,9 @@ export type <%= schema.normalName %> = <%- schema.values.filter(p => p != null).
 <%_ } if (schema.schemaType === 'property') { -%>
 <%_ schema.description.foreach(d => { -%>
 /**
- * <%= d %>
+<%_ renderDocLines(d).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
  */
 <%_ }); -%>
 export type <%= schema.normalName %> = <%- schema.jsType %>;

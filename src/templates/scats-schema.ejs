@@ -1,9 +1,13 @@
+<%_ const sanitizeDocLine = (line) => String(line).replace(/\*\//g, '*\\/');
+const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => `     ${sanitizeDocLine(line)}`); -%>
 <%_ if (schema.schemaType === 'object') { -%>
 export class <%= schema.normalName %>Dto {
 
     /**
     <%_ schema.propsIncludingInherited().foreach(p => { -%>
-     * @param <%= p.normalisedName %> <%- p.description.getOrElseValue('') %>
+    <%_ renderDocLines(` * @param ${p.normalisedName} ${p.description.getOrElseValue('')}`).forEach(line => { -%>
+<%= line %>
+    <%_ }); -%>
     <%_ }); -%>
      */
     constructor(

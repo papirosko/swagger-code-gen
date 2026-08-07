@@ -1,19 +1,29 @@
+<%_ const sanitizeDocLine = (line) => String(line).replace(/\*\//g, '*\\/');
+const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => ` * ${sanitizeDocLine(line)}`); -%>
 /**
  * <%= method.method.toUpperCase() %> <%= method.path %>
 <% if (method.summary) { -%>
- * @summary <%= method.summary %>
+<%_ renderDocLines(`@summary ${method.summary}`).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
 <% } -%>
 <% if (method.description) { -%>
- * @description <%= method.description %>
+<%_ renderDocLines(`@description ${method.description}`).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
 <% } -%>
 <% if (method.wrapParamsInObject) { -%>
  * @param {Object} params
 <% } -%>
 <% method.parameters.foreach(p => { -%>
- * @param {<%= p.jsType %>} <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %> <%= p.description.getOrElseValue('')%>
+<%_ renderDocLines(`@param {${p.jsType}} ${method.wrapParamsInObject ? 'params.' : ''}${p.uniqueName} ${p.description.getOrElseValue('')}`).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
 <% }); -%>
 <%_ if (body.nonEmpty) { -%>
- * @param {<%= body.get.body.jsType %>} body <%= method.bodyDescription.getOrElseValue('') %>
+<%_ renderDocLines(`@param {${body.get.body.jsType}} body ${method.bodyDescription.getOrElseValue('')}`).forEach(line => { -%>
+<%= line %>
+<%_ }); -%>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
  * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType) %>} <%= method.response.description %>

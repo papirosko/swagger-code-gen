@@ -27,6 +27,10 @@ export class SchemaFactory {
         return typeValue === expectedType;
     }
 
+    private static hasObjectProperties(def: OpenApiSchema | OpenApiProperty): boolean {
+        return option(def.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0;
+    }
+
     private static firstNonNullType(def: OpenApiSchema): string | undefined {
         const typeValue = def.type;
         if (Array.isArray(typeValue)) {
@@ -43,7 +47,7 @@ export class SchemaFactory {
 
     static resolveSchemaType(def: OpenApiSchema): SchemaType {
         if (SchemaFactory.hasType(def, 'object') ||
-            option(def.properties).exists(p => Object.keys(p).length > 0) ||
+            SchemaFactory.hasObjectProperties(def) ||
             option(def.allOf).exists(x => x.length > 0)  ||
             SchemaFactory.isEmptyObjectOrArray(def)
         ) {
@@ -62,7 +66,7 @@ export class SchemaFactory {
                  options: GenerationOptions): Schema {
         const primaryType = SchemaFactory.firstNonNullType(def);
         if (SchemaFactory.hasType(def, 'object') ||
-            option(def.properties).exists(p => Object.keys(p).length > 0) ||
+            SchemaFactory.hasObjectProperties(def) ||
             schemasTypes.get(name).contains('object')
         ) {
             return SchemaObject.fromDefinition(name, def, schemasTypes, options, HashMap.empty);

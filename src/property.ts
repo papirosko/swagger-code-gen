@@ -87,6 +87,10 @@ export class Property implements Schema {
         return Property.typeTokens(definition?.type).exists(token => token === expectedType);
     }
 
+    private static hasObjectProperties(definition: OpenApiProperty | undefined): boolean {
+        return option(definition?.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0;
+    }
+
     private static normalizedDefinitionType(typeValue: string | string[] | undefined, excludeNull: boolean): Option<string> {
         const tokens = Property.typeTokens(typeValue)
             .filter(token => !excludeNull || token !== 'null')
@@ -208,6 +212,10 @@ export class Property implements Schema {
         return typeValue.startsWith('{') && typeValue.endsWith('}');
     }
 
+    private static quoteTsStringLiteral(value: string): string {
+        return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+    }
+
     private static arrayInnerType(typeValue: string): string | null {
         const arrayMatch = typeValue.match(/^ReadonlyArray<(.+)>$/);
         return arrayMatch?.[1] ?? null;
@@ -323,13 +331,13 @@ export class Property implements Schema {
                 .flatMap(i => option(i.$ref))
                 .exists(ref => schemaTypes.get(ref.substring(SCHEMA_PREFIX.length)).contains('object')) ||
             option(definition.items).exists(i =>
-                Property.hasType(i, 'object') &&
-                option(i.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0);
+                (Property.hasType(i, 'object') || Property.hasObjectProperties(i)) &&
+                Property.hasObjectProperties(i));
 
         let inplace = none;
         const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
-                if (Property.hasType(definition, 'object') && option(definition.properties).map(p => Object.keys(p).length).getOrElseValue(0) > 0) {
+                if ((Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
                     // inplace object
                     inplace = some(definition);
                     return some(parentClassname + '$' + name);
@@ -400,7 +408,7 @@ export class Property implements Schema {
         const items = option(definition.items?.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
-                if (Property.hasType(definition, 'array') && option(definition.items).exists(i => Property.hasType(i, 'object'))) {
+                if (Property.hasType(definition, 'array') && option(definition.items).exists(i => Property.hasType(i, 'object') || Property.hasObjectProperties(i))) {
                     inplace = some(definition.items);
                     return some(parentClassname + '$' + name);
                 } else {
@@ -470,7 +478,7 @@ export class Property implements Schema {
                     })
             )
             .orElse(() => {
-                if (Property.hasType(definition, 'object') && option(definition.properties).map(props => Object.keys(props).length).getOrElseValue(0) > 0) {
+                if ((Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
                     return some(Property.objectDefinitionToLiteral(definition, schemaTypes, options));
                 }
                 return none;
@@ -540,7 +548,7 @@ export class Property implements Schema {
                 .filter(v => v != null)
                 .map(enumValue => {
                     if (isStringLike) {
-                        return `'${enumValue}'`;
+                        return Property.quoteTsStringLiteral(String(enumValue));
                     } else {
                         return enumValue;
                     }
@@ -664,7 +672,7 @@ export class Property implements Schema {
                 .filter(v => v != null)
                 .map(enumValue => {
                     if (isStringLike) {
-                        return `'${enumValue}'`;
+                        return Property.quoteTsStringLiteral(String(enumValue));
                     } else {
                         return enumValue;
                     }
