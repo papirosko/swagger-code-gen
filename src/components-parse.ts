@@ -170,9 +170,14 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
         const pathLevelParameters = option(pathItem.parameters).getOrElseValue([]).map(p => resolveParamRef(p, json));
         return Collection.from(Object.keys(pathItem))
             .filter(methodName => httpMethods.has(methodName.toLowerCase()))
-            .map(methodName =>
-                new Method(path, methodName, pathItem[methodName] as OpenApiMethod, schemasTypes, options, pool, pathLevelParameters)
-            );
+            .map(methodName => {
+                const methodDef = pathItem[methodName] as OpenApiMethod;
+                const resolvedMethodDef = {
+                    ...methodDef,
+                    parameters: option(methodDef.parameters).getOrElseValue([]).map(p => resolveParamRef(p, json))
+                };
+                return new Method(path, methodName, resolvedMethodDef, schemasTypes, options, pool, pathLevelParameters);
+            });
     }).filter(m => {
         const included = options.includeTags.isEmpty || options.includeTags.intersect(m.tags).nonEmpty;
         const excluded = options.excludeTags.nonEmpty && options.excludeTags.intersect(m.tags).nonEmpty;

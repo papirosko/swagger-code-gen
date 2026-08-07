@@ -83,9 +83,8 @@ export class Property implements Schema {
                     .filter(x => x.nonEmpty)
                     .map(x =>
                         x.flatMapOption(oneOfItem =>
-                            option(oneOfItem.$ref)
-                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
-                                .orElseValue(option(oneOfItem.type))
+                            Property.definitionToTypeString(oneOfItem as OpenApiProperty, schemaTypes, options)
+                                .map(typeValue => Property.finalizeResolvedType(typeValue, oneOfItem as OpenApiProperty))
                         ).mkString(' & ')
                     )
             )
@@ -95,9 +94,8 @@ export class Property implements Schema {
                     .filter(x => x.nonEmpty)
                     .map(x =>
                         x.flatMapOption(oneOfItem =>
-                            option(oneOfItem.$ref)
-                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
-                                .orElseValue(option(oneOfItem.type))
+                            Property.definitionToTypeString(oneOfItem as OpenApiProperty, schemaTypes, options)
+                                .map(typeValue => Property.finalizeResolvedType(typeValue, oneOfItem as OpenApiProperty))
                         ).distinct.mkString(' | ')
                     )
             )
@@ -109,11 +107,9 @@ export class Property implements Schema {
                         return x
                             .filter(t => t.type !== 'null')
                             .flatMapOption(oneOfItem =>
-                                option(oneOfItem.$ref)
-                                    .map(ref => ref.substring(SCHEMA_PREFIX.length))
-                                    .orElseValue(option(oneOfItem.type))
+                                Property.definitionToTypeString(oneOfItem as OpenApiProperty, schemaTypes, options)
+                                    .map(typeValue => Property.finalizeResolvedType(typeValue, oneOfItem as OpenApiProperty))
                             )
-                            .map(tpe => this.toJsType(tpe))
                             .distinct
                             .mkString(' | ');
                     })
@@ -157,9 +153,8 @@ export class Property implements Schema {
                     .filter(x => x.nonEmpty)
                     .map(x =>
                         x.flatMapOption(oneOfItem =>
-                            option(oneOfItem.$ref)
-                                .map(ref => ref.substring(SCHEMA_PREFIX.length))
-                                .orElseValue(option(oneOfItem.type))
+                            Property.definitionToTypeString(oneOfItem as OpenApiProperty, schemaTypes, options)
+                                .map(typeValue => Property.finalizeResolvedType(typeValue, oneOfItem as OpenApiProperty))
                         ).mkString(' | ')
                     )
             )
@@ -169,6 +164,101 @@ export class Property implements Schema {
 
         return new Property(name, type, option(definition.format), description, null, nullable, required,
             items, referencesObject, itemReferencesObject, enumValues, inplace);
+    }
+
+    private static definitionToTypeString(
+        definition: OpenApiProperty,
+        schemaTypes: HashMap<string, SchemaType>,
+        options: GenerationOptions
+    ): Option<string> {
+        return option(definition.$ref)
+            .map(ref => ref.substring(SCHEMA_PREFIX.length))
+            .orElse(() =>
+                option(definition.oneOf)
+                    .map(items => Collection.from(items))
+                    .filter(items => items.nonEmpty)
+                    .map(items => items
+                        .flatMapOption(item => Property.definitionToTypeString(item as OpenApiProperty, schemaTypes, options))
+                        .distinct
+                        .mkString(' | ')
+                    )
+            )
+            .orElse(() =>
+                option(definition.allOf)
+                    .map(items => Collection.from(items))
+                    .filter(items => items.nonEmpty)
+                    .map(items => items
+                        .flatMapOption(item => Property.definitionToTypeString(item as OpenApiProperty, schemaTypes, options))
+                        .distinct
+                        .mkString(' & ')
+                    )
+            )
+            .orElse(() =>
+                option(definition.anyOf)
+                    .map(items => Collection.from(items))
+                    .filter(items => items.nonEmpty)
+                    .map(items => {
+                        const includesNull = items.exists(item => item.type === 'null');
+                        const base = items
+                            .filter(item => item.type !== 'null')
+                            .flatMapOption(item => Property.definitionToTypeString(item as OpenApiProperty, schemaTypes, options))
+                            .distinct
+                            .mkString(' | ');
+                        return includesNull && base.length > 0 ? `${base} | null` : base;
+                    })
+            )
+            .orElse(() => {
+                if (definition.type === 'object' && option(definition.properties).map(props => Object.keys(props).length).getOrElseValue(0) > 0) {
+                    return some(Property.objectDefinitionToLiteral(definition, schemaTypes, options));
+                }
+                return none;
+            })
+            .orElse(() => {
+                if (definition.type === 'array') {
+                    const itemType = option(definition.items)
+                        .flatMap(item => Property.definitionToTypeString(item, schemaTypes, options)
+                            .map(typeValue => Property.finalizeResolvedType(typeValue, item)))
+                        .getOrElseValue('any');
+                    return some(`ReadonlyArray<${itemType}>`);
+                }
+                return none;
+            })
+            .orElse(() => option(definition.type));
+    }
+
+    private static finalizeResolvedType(typeValue: string, definition?: OpenApiProperty): string {
+        const arrayMatch = typeValue.match(/^ReadonlyArray<(.+)>$/);
+        if (arrayMatch) {
+            const nestedDefinition = definition?.items;
+            return `ReadonlyArray<${Property.finalizeResolvedType(arrayMatch[1], nestedDefinition)}>`;
+        }
+        if (typeValue.includes('{')) {
+            return typeValue;
+        }
+        return Property.toJsType(typeValue, undefined, option(definition?.format));
+    }
+
+    private static objectDefinitionToLiteral(
+        definition: OpenApiProperty,
+        schemaTypes: HashMap<string, SchemaType>,
+        options: GenerationOptions
+    ): string {
+        const properties = option(definition.properties).getOrElseValue({});
+        const requiredProps = new Set(Array.isArray((definition as any).required) ? (definition as any).required : []);
+        const formatPropertyName = (propertyName: string) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(propertyName)
+            ? propertyName
+            : `'${propertyName}'`;
+
+        const entries = Object.keys(properties).map(propertyName => {
+            const propertyDefinition = properties[propertyName] as OpenApiProperty;
+            const propertyType = Property.definitionToTypeString(propertyDefinition, schemaTypes, options)
+                .map(typeValue => Property.finalizeResolvedType(typeValue, propertyDefinition))
+                .getOrElseValue('any');
+            const optionalMark = requiredProps.has(propertyName) ? '' : '?';
+            return `${formatPropertyName(propertyName)}${optionalMark}: ${propertyType}`;
+        });
+
+        return `{ ${entries.join('; ')} }`;
     }
 
 
@@ -242,7 +332,7 @@ export class Property implements Schema {
                     case 'array':
                         return `ReadonlyArray<${Property.toJsType(itemTpe)}>`;
                     default:
-                        return NameUtils.normaliseClassname(tpe);
+                        return NameUtils.normaliseClassname(t);
                 }
             })
             .distinct.mkString(' | ');
