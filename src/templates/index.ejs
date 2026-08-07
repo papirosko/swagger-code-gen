@@ -12,7 +12,7 @@
  *********************************************************
  *********************************************************/
 <% if (targetNode) {%>
-import fetch, {Request, Response, BodyInit} from 'node-fetch';
+import fetch, {Request, Response as FetchResponse, BodyInit} from 'node-fetch';
 import FormData from 'form-data';
 <% } %>
 <% if (scats) {%>
@@ -23,9 +23,9 @@ export interface RequestOptions {
     signal?: AbortSignal,
     apiPrefix?: string;
     headers?: Record<string, string>;
-    requestExecutor?: (request: Request) => Promise<Response>;
+    requestExecutor?: (request: Request) => Promise<<% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>>;
     preProcessRequest?: (request: Request) => Request | Promise<Request>;
-    postProcessResponse?: (request: Request, response: Response) => Response | Promise<Response>;
+    postProcessResponse?: (request: Request, response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>) => <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %> | Promise<<% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>>;
 }
 
 
@@ -122,7 +122,7 @@ function extractCharset(contentType: string | null): string {
     return normaliseCharset(match?.[2] || 'utf-8');
 }
 
-async function readResponseText(response: Response): Promise<string> {
+async function readResponseText(response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>): Promise<string> {
     const payload = await response.arrayBuffer();
     const charset = extractCharset(response.headers.get('content-type'));
     try {
@@ -132,7 +132,7 @@ async function readResponseText(response: Response): Promise<string> {
     }
 }
 
-function hasResponseBody(response: Response): boolean {
+function hasResponseBody(response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>): boolean {
     if (response.status === 204 || response.status === 205 || response.status === 304) {
         return false;
     }

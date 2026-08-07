@@ -1,17 +1,18 @@
 <%_ const sanitizeDocLine = (line) => String(line).replace(/\*\//g, '*\\/');
 const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => `     ${sanitizeDocLine(line)}`); -%>
 <%_ if (schema.schemaType === 'object') { -%>
+<%_ const allProps = schema.propsIncludingInherited(); -%>
 export class <%= schema.normalName %>Dto {
 
     /**
-    <%_ schema.propsIncludingInherited().foreach(p => { -%>
+    <%_ allProps.foreach(p => { -%>
     <%_ renderDocLines(` * @param ${p.normalisedName} ${p.description.getOrElseValue('')}`).forEach(line => { -%>
 <%= line %>
     <%_ }); -%>
     <%_ }); -%>
-     */
+    */
     constructor(
-        <%_ schema.properties.foreach(p => { -%>
+        <%_ allProps.foreach(p => { -%>
         readonly <%= p.normalisedName %>: <%- p.scatsWrapperType %>,
         <%_ }); -%>
     ) {}
@@ -19,14 +20,14 @@ export class <%= schema.normalName %>Dto {
 
     static fromJson(json: <%= schema.normalName %>): <%= schema.normalName %>Dto {
         return new <%= schema.normalName %>Dto(
-            <%_ schema.properties.foreach(p => { _%>
+            <%_ allProps.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
             <%_ if (p.required && !p.nullable) { _%>
             <%- p.scatsWrapperType %>.fromJson(json['<%= p.name %>']),
             <%_ } else { _%>
             option(json['<%= p.name %>']).map(_ => <%- p.normalType %>Dto.fromJson(_)),
             <%_ } _%>
-            <%_ } else if (p.isArray) { _%>
+            <%_ } else if (p.isArray || p.scatsWrapperTypeIsCollection) { _%>
             (Collection.from(option(json['<%= p.name %>']).getOrElseValue([]))
                 <% if (p.itemScatsWrapperTypeHasFromJson) { _%>.map(i => <%- p.itemScatsWrapperType %>.fromJson(i))<%_ }  _%>) as unknown as <%- p.scatsWrapperType %>,
             <%_ } else if (p.required && !p.nullable) { _%>
@@ -40,7 +41,7 @@ export class <%= schema.normalName %>Dto {
 
     copy(fields: Partial<<%= schema.normalName %>Dto>): <%= schema.normalName %>Dto {
         return new <%= schema.normalName %>Dto(
-        <%_ schema.properties.foreach(p => { -%>
+        <%_ allProps.foreach(p => { -%>
             option(fields.<%= p.normalisedName %>).getOrElseValue(this.<%= p.normalisedName %>),
         <%_ });  -%>
         );
@@ -48,8 +49,8 @@ export class <%= schema.normalName %>Dto {
 
     get toJson(): <%= schema.normalName %> {
         return {
-            <%_ schema.properties.foreach(p => { _%>
-            <%_ if (p.isArray) { _%>
+            <%_ allProps.foreach(p => { _%>
+            <%_ if (p.isArray || p.scatsWrapperTypeIsCollection) { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>
                 .map(value => scatsToJsonValue(value))
                 .toArray,

@@ -213,7 +213,7 @@ export class Property implements Schema {
     }
 
     private static quoteTsStringLiteral(value: string): string {
-        return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+        return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, '\\\'')}'`;
     }
 
     private static arrayInnerType(typeValue: string): string | null {
@@ -240,7 +240,7 @@ export class Property implements Schema {
         if (Property.primitiveLikeTypes.has(typeValue) || Property.isLiteralVariant(typeValue)) {
             return typeValue;
         }
-        return scatsDtoRefs.exists(ref => ref === typeValue) ? `${NameUtils.normaliseClassname(typeValue)}Dto` : typeValue;
+        return scatsDtoRefs.exists(ref => NameUtils.normaliseClassname(ref) === typeValue) ? `${NameUtils.normaliseClassname(typeValue)}Dto` : typeValue;
     }
 
     private static renderScatsType(typeValue: string,
@@ -337,7 +337,7 @@ export class Property implements Schema {
         let inplace = none;
         const type = option(definition.$ref).map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
-                if ((Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
+                if (parentClassname !== '' && (Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
                     // inplace object
                     inplace = some(definition);
                     return some(parentClassname + '$' + name);
@@ -443,6 +443,12 @@ export class Property implements Schema {
     ): Option<string> {
         return option(definition.$ref)
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
+            .orElse(() => {
+                if ((Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
+                    return some(Property.objectDefinitionToLiteral(definition, schemaTypes, options));
+                }
+                return none;
+            })
             .orElse(() =>
                 option(definition.oneOf)
                     .map(items => Collection.from(items))
@@ -477,12 +483,6 @@ export class Property implements Schema {
                         return includesNull && base.length > 0 ? `${base} | null` : base;
                     })
             )
-            .orElse(() => {
-                if ((Property.hasType(definition, 'object') || Property.hasObjectProperties(definition)) && Property.hasObjectProperties(definition)) {
-                    return some(Property.objectDefinitionToLiteral(definition, schemaTypes, options));
-                }
-                return none;
-            })
             .orElse(() => {
                 if (Property.hasType(definition, 'array')) {
                     const itemType = option(definition.items)
@@ -648,6 +648,11 @@ export class Property implements Schema {
 
     get itemScatsWrapperTypeHasFromJson(): boolean {
         return this.itemReferencesObject && this.itemScatsWrapperType.endsWith('Dto');
+    }
+
+    get scatsWrapperTypeIsCollection(): boolean {
+        const tokens = Property.typeTokens(this.scatsWrapperType);
+        return tokens.size === 1 && tokens.headOption.exists(token => token.startsWith('Collection<'));
     }
 
     /**

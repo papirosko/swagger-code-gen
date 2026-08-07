@@ -277,4 +277,32 @@ describe('components parsing - scats union wrappers', () => {
     const payload = getProperty(spec, 'InlineObjectContainer', 'payload');
     expect(payload.scatsWrapperType).toBe('Option<{ x: string }>');
   });
+
+  it('wraps refs with punctuation-normalized schema names as Dto types', () => {
+    const spec = {
+      components: {
+        schemas: {
+          'ImageRefParam-2': {
+            type: 'object',
+            properties: {
+              image_url: {type: 'string'},
+              file_id: {type: 'string'}
+            }
+          },
+          RequestCarrier: {
+            type: 'object',
+            properties: {
+              input_reference: {
+                $ref: '#/components/schemas/ImageRefParam-2'
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const inputReference = getProperty(spec, 'RequestCarrier', 'input_reference');
+    expect(inputReference.scatsWrapperType).toBe('Option<ImageRefParam2Dto>');
+  });
 });

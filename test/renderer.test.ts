@@ -675,4 +675,228 @@ describe('Renderer', () => {
     expect(output).toContain('as unknown as Collection<{ note: string } | string>');
     expect(output).not.toContain('Collection<{ note: string } | string>.fromJson');
   });
+
+  it('serializes collection-wrapped nullable arrays with toArray instead of Option helpers', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          CollectionCarrier: {
+            type: 'object',
+            properties: {
+              items: {
+                anyOf: [
+                  {
+                    type: 'array',
+                    items: {type: 'string'}
+                  },
+                  {type: 'null'}
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly items: Collection<string>,');
+    expect(output).toContain("'items': this.items");
+    expect(output).toContain('.toArray,');
+    expect(output).not.toContain("'items': this.items.map(value => scatsToJsonValue(value)).orNull");
+    expect(output).not.toContain("'items': this.items.map(value => scatsToJsonValue(value)).orUndefined");
+  });
+
+  it('does not treat scalar-or-array binary unions as pure collections in scats DTOs', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          BinaryCarrier: {
+            type: 'object',
+            required: ['files'],
+            properties: {
+              files: {
+                anyOf: [
+                  {type: 'string', format: 'binary'},
+                  {
+                    type: 'array',
+                    items: {type: 'string', format: 'binary'}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, true, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly files: Blob | Buffer | Collection<Blob | Buffer>,');
+    expect(output).toContain("'files': scatsToJsonValue(this.files),");
+    expect(output).toContain("json['files'] as unknown as Blob | Buffer | Collection<Blob | Buffer>,");
+    expect(output).not.toContain("Collection.from(option(json['files']).getOrElseValue([]))");
+  });
+
+  it('includes inherited allOf properties in scats dto constructor and toJson', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          ParentConfig: {
+            type: 'object',
+            required: ['id', 'role'],
+            properties: {
+              id: {type: 'string'},
+              role: {type: 'string'}
+            }
+          },
+          ChildConfig: {
+            allOf: [
+              {$ref: '#/components/schemas/ParentConfig'},
+              {
+                type: 'object',
+                properties: {
+                  value: {type: 'string'}
+                }
+              }
+            ]
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('constructor(');
+    expect(output).toContain('readonly id: string,');
+    expect(output).toContain('readonly role: string,');
+    expect(output).toContain('readonly value: Option<string>,');
+    expect(output).toContain("'id': scatsToJsonValue(this.id),");
+    expect(output).toContain("'role': scatsToJsonValue(this.role),");
+    expect(output).toContain("'value': this.value.map(value => scatsToJsonValue(value)).orUndefined,");
+  });
+
+  it('aliases fetch Response import when schema names include Response', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Response: {
+            type: 'object',
+            properties: {
+              ok: {type: 'boolean'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/response': {
+          get: {
+            operationId: 'getResponseAlias',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/Response'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, true, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain("import fetch, {Request, Response as FetchResponse, BodyInit} from 'node-fetch';");
+    expect(output).toContain('requestExecutor?: (request: Request) => Promise<FetchResponse>;');
+    expect(output).toContain('async function readResponseText(response: FetchResponse): Promise<string>');
+  });
+
+  it('serializes array header params to comma separated strings', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/headers': {
+          get: {
+            operationId: 'getWithHeaderArray',
+            parameters: [
+              {
+                in: 'header',
+                name: 'openai-beta',
+                required: false,
+                schema: {
+                  type: 'array',
+                  items: {type: 'string'}
+                }
+              }
+            ],
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {type: 'string'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain("...(openaiBeta != null ? {'openai-beta': openaiBeta.join(',')} : {}),");
+  });
 });

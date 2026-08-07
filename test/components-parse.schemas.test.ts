@@ -324,4 +324,148 @@ describe('components parsing - schemas', () => {
 
     expect(content.jsType).toBe('string | ReadonlyArray<string | { type: string; tool_name: string }>');
   });
+
+  it('keeps inline object properties when the object also uses oneOf branches for required fields', () => {
+    const objectWithPropertiesAndOneOfSpec = {
+      components: {
+        schemas: {
+          ToolResourcesContainer: {
+            type: 'object',
+            properties: {
+              tool_resources: {
+                anyOf: [
+                  {
+                    type: 'object',
+                    properties: {
+                      code_interpreter: {
+                        type: 'object',
+                        properties: {
+                          file_ids: {
+                            type: 'array',
+                            items: {type: 'string'}
+                          }
+                        }
+                      },
+                      file_search: {
+                        type: 'object',
+                        properties: {
+                          vector_store_ids: {
+                            type: 'array',
+                            items: {type: 'string'}
+                          },
+                          vector_stores: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                file_ids: {
+                                  type: 'array',
+                                  items: {type: 'string'}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        oneOf: [
+                          {required: ['vector_store_ids']},
+                          {required: ['vector_stores']}
+                        ]
+                      }
+                    }
+                  },
+                  {type: 'null'}
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(objectWithPropertiesAndOneOfSpec);
+    const schemas = resolveSchemas(objectWithPropertiesAndOneOfSpec, types, emptyOptions);
+    const container = schemas.get('ToolResourcesContainer').get as SchemaObject;
+    const toolResources = container.properties.find(p => p.name === 'tool_resources').get as Property;
+
+    expect(toolResources.jsType).toBe(
+      '{ code_interpreter?: { file_ids?: ReadonlyArray<string> }; file_search?: { vector_store_ids?: ReadonlyArray<string>; vector_stores?: ReadonlyArray<{ file_ids?: ReadonlyArray<string> }> } } | null'
+    );
+  });
+
+  it('deduplicates repeated property names across allOf branches', () => {
+    const duplicateAllOfSpec = {
+      components: {
+        schemas: {
+          DuplicateCarrier: {
+            allOf: [
+              {
+                type: 'object',
+                properties: {
+                  metadata: {type: 'string'},
+                  temperature: {type: 'number'}
+                }
+              },
+              {
+                type: 'object',
+                properties: {
+                  metadata: {type: 'string'},
+                  temperature: {type: 'number'},
+                  top_p: {type: 'number'}
+                }
+              }
+            ]
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(duplicateAllOfSpec);
+    const schemas = resolveSchemas(duplicateAllOfSpec, types, emptyOptions);
+    const duplicateCarrier = schemas.get('DuplicateCarrier').get as SchemaObject;
+
+    expect(duplicateCarrier.properties.map(p => p.name).toArray).toEqual(['metadata', 'temperature', 'top_p']);
+    expect(duplicateCarrier.properties.map(p => p.normalisedName).toArray).toEqual(['metadata', 'temperature', 'top_p']);
+  });
+
+  it('does not mutate own properties when reading inherited properties', () => {
+    const inheritedSpec = {
+      components: {
+        schemas: {
+          ParentConfig: {
+            type: 'object',
+            properties: {
+              metadata: {type: 'string'},
+              temperature: {type: 'number'}
+            }
+          },
+          ChildConfig: {
+            allOf: [
+              {$ref: '#/components/schemas/ParentConfig'},
+              {
+                type: 'object',
+                properties: {
+                  messages: {
+                    type: 'array',
+                    items: {type: 'string'}
+                  },
+                  model: {type: 'string'}
+                }
+              }
+            ]
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(inheritedSpec);
+    const schemas = resolveSchemas(inheritedSpec, types, emptyOptions);
+    const child = schemas.get('ChildConfig').get as SchemaObject;
+
+    expect(child.properties.map(p => p.name).toArray).toEqual(['messages', 'model']);
+    expect(child.propsIncludingInherited().map(p => p.name).toArray).toEqual(['messages', 'model', 'metadata', 'temperature']);
+    expect(child.properties.map(p => p.name).toArray).toEqual(['messages', 'model']);
+  });
 });

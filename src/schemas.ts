@@ -1,5 +1,5 @@
 import {OpenApiProperty, OpenApiSchema} from './openapi.js';
-import {Collection, HashMap, HashSet, Nil, Option, option} from 'scats';
+import {Collection, HashMap, HashSet, mutable, Nil, Option, option} from 'scats';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {NameUtils} from './name.utils.js';
 
@@ -178,12 +178,15 @@ export class SchemaObject implements Schema {
 
     propsIncludingInherited(): Collection<Property> {
         const pendingParents = this.parents.values.toArray;
-        const props = this.properties.toBuffer;
+        const props = new mutable.ArrayBuffer<Property>();
+        props.appendAll(this.properties.toArray);
         const propNames = props.map(p => p.name).toSet.toMutable;
         while (pendingParents.length > 0) {
             const parent = pendingParents.shift();
             if (parent) {
-                props.appendAll(parent.properties.filter(parentProp => !propNames.contains(parentProp.name)));
+                const inheritedToAdd = parent.properties.filter(parentProp => !propNames.contains(parentProp.name));
+                props.appendAll(inheritedToAdd);
+                inheritedToAdd.foreach(parentProp => propNames.add(parentProp.name));
                 parent.parents.values.foreach(pp => pendingParents.push(pp));
             }
         }
@@ -254,9 +257,20 @@ export class SchemaObject implements Schema {
                     );
             });
 
+        const dedupedProperties = (() => {
+            const seen = new Set<string>();
+            return collectedProperties.filter(property => {
+                if (seen.has(property.name)) {
+                    return false;
+                }
+                seen.add(property.name);
+                return true;
+            });
+        })();
+
         const takenNames = new Set<string>();
         const nextSuffixByName = new Map<string, number>();
-        const properties = collectedProperties.map(property => {
+        const properties = dedupedProperties.map(property => {
             const baseName = property.normalisedName;
             if (!takenNames.has(baseName)) {
                 takenNames.add(baseName);
