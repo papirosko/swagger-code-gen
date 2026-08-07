@@ -15,6 +15,7 @@ export interface ResponseDetails {
      */
     asProperty: Property;
     inPlace?: OpenApiSchema;
+    rawSchema?: OpenApiSchema;
     responseType: string;
     description?: string;
     mimeType: string;
@@ -37,6 +38,7 @@ export interface RequestBody {
     suffix: string;
     inPlace?: OpenApiSchema;
     inPlaceClassname?: string;
+    rawSchema?: OpenApiSchema;
 }
 
 
@@ -119,10 +121,9 @@ export class Method {
                 option(body.content)
                     .orElse(() => {
                         // reference to shared body
-                        return option(body).filter(x => {
-                            const sharedRef = option(x['$ref']).exists(ref => ref.toString().startsWith(SHARED_BODIES_PREFIX));
-                            return sharedRef;
-                        })
+                        return option(body).filter(x =>
+                            option(x['$ref']).exists(ref => ref.toString().startsWith(SHARED_BODIES_PREFIX))
+                        )
                             .map(x => {
                                 const referenced = pool.get(x['$ref'].substring(SHARED_BODIES_PREFIX.length) + '$RequestBody');
                                 if (referenced.exists(o => o instanceof Property)) {
@@ -218,6 +219,7 @@ export class Method {
                         suffix: supportedMimeTypes.size > 1 ? supportedBodyMimeTypes.get(mt).getOrElseValue(mt) : '',
                         inPlace: inPlaceClassname ? bodySchemaDef : undefined,
                         inPlaceClassname: inPlaceClassname,
+                        rawSchema: bodySchemaDef,
                     } as RequestBody;
                 });
             })
@@ -264,6 +266,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        rawSchema: p.schema,
                     } as ResponseDetails;
                 }
 
@@ -278,6 +281,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        rawSchema: p.schema,
                     } as ResponseDetails;
                 }
 
@@ -305,6 +309,7 @@ export class Method {
                         inPlace: p.schema,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        rawSchema: p.schema,
                     } as ResponseDetails;
 
                 } else {
@@ -318,6 +323,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
+                        rawSchema: p.schema,
                     } as ResponseDetails;
                 }
             })
@@ -339,7 +345,7 @@ export class Method {
 
     get pathWithSubstitutions(): string {
         const paramPrefix = `${this.wrapParamsInObject ? 'params.' : ''}`;
-        return this.path.replace(/\{(\w+?)\}/g, (matched, group) => {
+        return this.path.replace(/\{(\w+?)}/g, (matched, group) => {
             const remappedName = this.parameters.find(p => p.rawName === group && p.in === 'path')
                 .map(_ => _.uniqueName)
                 .getOrElseValue(group);

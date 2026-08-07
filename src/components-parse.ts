@@ -244,9 +244,21 @@ export function filterUsedSchemas(paths: Collection<Method>,
     paths.foreach(m => {
         m.parameters.foreach(p => p.referencedSchemas.foreach(t => add(t)));
         collectFromProperty(m.response.asProperty);
+        if (m.response.inPlace) {
+            collectRefsFromDefinition(m.response.inPlace, schemas, add);
+        }
+        if (m.response.rawSchema) {
+            collectRefsFromDefinition(m.response.rawSchema, schemas, add);
+        }
         m.body.foreach(b => {
             if (b.body instanceof Property) {
                 collectFromProperty(b.body);
+            }
+            if (b.inPlace) {
+                collectRefsFromDefinition(b.inPlace, schemas, add);
+            }
+            if (b.rawSchema) {
+                collectRefsFromDefinition(b.rawSchema, schemas, add);
             }
         });
     });
@@ -299,7 +311,6 @@ export function generateInPlace(paths: Collection<Method>,
             paths.flatMap(m => m.body)
                 .filter(b => option(b.inPlace).isDefined)
                 .map(m => {
-                    console.log(`Generating inplace body: ${m.inPlaceClassname}`);
                     return SchemaObject.fromDefinition(m.inPlaceClassname, m.inPlace!, schemasTypes, options, pool);
                 })
         )

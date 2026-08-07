@@ -196,9 +196,13 @@ export class SchemaObject implements Schema {
             .filter(p => schemasTypes.get(p).contains('object'));
 
         // explicitly required properties should also be collected from all parents
-        const explicitlyRequired = option(def.required)
-            .map(arr => typeof arr === 'boolean' ? Nil : Collection.from(arr))
-            .getOrElseValue(Nil)
+        const explicitlyRequired = allOff
+            .getOrElseValue(Collection.of(def))
+            .flatMap(subSchema => option(subSchema.required)
+                .filter(arr => Array.isArray(arr))
+                .map(arr => Collection.from(arr as string[]))
+                .getOrElseValue(Nil)
+            )
             .appendedAll(parents.flatMap(p =>
                 pool.get(p)
                     .map(o => (o as SchemaObject).explicitlyRequiredProperties)

@@ -77,6 +77,106 @@ describe('Renderer', () => {
     expect(output).toContain('async function listPets');
   });
 
+
+  it('renders shared-object allOf models with shared array fields', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          BaseEntity: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string' }
+            }
+          },
+          SharedTag: {
+            type: 'object',
+            required: ['label'],
+            properties: {
+              label: { type: 'string' }
+            }
+          },
+          CreateWidgetRequest: {
+            allOf: [
+              { $ref: '#/components/schemas/BaseEntity' },
+              {
+                type: 'object',
+                required: ['primaryTag', 'related'],
+                properties: {
+                  primaryTag: { $ref: '#/components/schemas/SharedTag' },
+                  related: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/SharedTag' }
+                  }
+                }
+              }
+            ]
+          },
+          WidgetResponse: {
+            allOf: [
+              { $ref: '#/components/schemas/BaseEntity' },
+              {
+                type: 'object',
+                required: ['primaryTag', 'related', 'status'],
+                properties: {
+                  primaryTag: { $ref: '#/components/schemas/SharedTag' },
+                  related: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/SharedTag' }
+                  },
+                  status: { type: 'string' }
+                }
+              }
+            ]
+          }
+        }
+      },
+      paths: {
+        '/widgets': {
+          post: {
+            operationId: 'createWidget',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CreateWidgetRequest' }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/WidgetResponse' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('export interface CreateWidgetRequest extends BaseEntity');
+    expect(output).toContain('readonly \'primaryTag\': SharedTag;');
+    expect(output).toContain('readonly \'related\': ReadonlyArray<SharedTag>;');
+    expect(output).toContain('export interface WidgetResponse extends BaseEntity');
+    expect(output).toContain('body: CreateWidgetRequest,');
+    expect(output).toContain('Promise<WidgetResponse>');
+  });
+
   it('wraps scats unknown responses to Option at runtime', async () => {
     const spec = {
       components: {
