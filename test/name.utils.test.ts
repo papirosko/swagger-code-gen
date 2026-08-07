@@ -12,6 +12,11 @@ describe('NameUtils', () => {
       expect(NameUtils.normaliseClassname('/order..item')).toBe('OrderItem');
       expect(NameUtils.normaliseClassname('')).toBe('');
     });
+
+    it('escapes generated type names that collide with runtime imports and globals', () => {
+      expect(NameUtils.normaliseClassname('blob')).toBe('$Blob');
+      expect(NameUtils.normaliseClassname('Response')).toBe('$Response');
+    });
   });
 
   describe('normaliseMethodName', () => {

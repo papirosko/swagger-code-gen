@@ -76,6 +76,27 @@ export class NameUtils {
         'yield',
     ]);
 
+    private static readonly RESERVED_GENERATED_MEMBER_NAMES = new Set([
+        'copy',
+        'toJson',
+        'fromJson'
+    ]);
+
+    private static readonly RESERVED_GENERATED_TYPE_NAMES = new Set([
+        'ArrayBuffer',
+        'Blob',
+        'BodyInit',
+        'Buffer',
+        'Collection',
+        'File',
+        'FormData',
+        'Option',
+        'Request',
+        'Response',
+        'Try',
+        'TryLike',
+    ]);
+
     static normaliseClassname(n: string): string {
         if (!n) return '';
         let res = '';
@@ -95,7 +116,7 @@ export class NameUtils {
 
 
         }
-        return res;
+        return NameUtils.escapeTypeIdentifier(res);
     }
 
 
@@ -114,7 +135,18 @@ export class NameUtils {
             return '_';
         }
         const startsWithInvalid = /^[^A-Za-z_$]/.test(n);
-        if (startsWithInvalid || NameUtils.RESERVED_IDENTIFIERS.has(n)) {
+        if (startsWithInvalid || NameUtils.RESERVED_IDENTIFIERS.has(n) || NameUtils.RESERVED_GENERATED_MEMBER_NAMES.has(n)) {
+            return `$${n}`;
+        }
+        return n;
+    }
+
+    private static escapeTypeIdentifier(n: string): string {
+        if (!n) {
+            return '_';
+        }
+        const startsWithInvalid = /^[^A-Za-z_$]/.test(n);
+        if (startsWithInvalid || NameUtils.RESERVED_IDENTIFIERS.has(n) || NameUtils.RESERVED_GENERATED_TYPE_NAMES.has(n)) {
             return `$${n}`;
         }
         return n;

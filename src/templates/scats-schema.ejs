@@ -42,7 +42,7 @@ export class <%= schema.normalName %>Dto {
     copy(fields: Partial<<%= schema.normalName %>Dto>): <%= schema.normalName %>Dto {
         return new <%= schema.normalName %>Dto(
         <%_ allProps.foreach(p => { -%>
-            option(fields.<%= p.normalisedName %>).getOrElseValue(this.<%= p.normalisedName %>),
+            fields.<%= p.normalisedName %> === undefined ? this.<%= p.normalisedName %> : fields.<%= p.normalisedName %>,
         <%_ });  -%>
         );
     }

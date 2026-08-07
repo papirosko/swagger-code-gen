@@ -421,8 +421,9 @@ describe('Renderer', () => {
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('ids.forEach(p => {');
+    expect(output).toContain('const queryParams: string[] = [];');
     expect(output).toContain('queryParams.push(`ids=${encodeParamValue(p)}`);');
-    expect(output).toContain('const cookieParams = [];');
+    expect(output).toContain('const cookieParams: string[] = [];');
     expect(output).toContain('cookieParams.push(`session_id=${encodeParamValue(session_id)}`);');
     expect(output).toContain('headers[\'Cookie\'] = headers[\'Cookie\'] ? `${headers[\'Cookie\']}; ${cookieParams.join(\'; \')}` : cookieParams.join(\'; \');');
   });
@@ -676,6 +677,127 @@ describe('Renderer', () => {
     expect(output).not.toContain('Collection<{ note: string } | string>.fromJson');
   });
 
+  it('renders anonymous object array responses as inline object arrays', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/attestations/repositories': {
+          get: {
+            operationId: 'listAttestationRepositories',
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: {type: 'integer'},
+                          name: {type: 'string'}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('): Promise<ReadonlyArray<{ id?: number; name?: string }>>');
+    expect(output).toContain('Promise<TryLike<Collection<{ id?: number; name?: string }>>>');
+    expect(output).not.toContain('ReadonlyArray<$>');
+    expect(output).not.toContain('Collection<$>');
+  });
+
+  it('escapes dto field names that collide with generated helper methods', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          FieldUpdateOperation: {
+            type: 'object',
+            properties: {
+              copy: {type: 'string'},
+              value: {type: 'string'}
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly $copy: Option<string>,');
+    expect(output).toContain('fields.$copy === undefined ? this.$copy : fields.$copy,');
+    expect(output).toContain("'copy': this.$copy.map(value => scatsToJsonValue(value)).orUndefined,");
+  });
+
+  it('keeps explicit nulls when copying required nullable alias fields', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Metadata: {
+            anyOf: [
+              {type: 'object'},
+              {type: 'null'}
+            ]
+          },
+          Assistant: {
+            type: 'object',
+            required: ['metadata'],
+            properties: {
+              metadata: {$ref: '#/components/schemas/Metadata'}
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('export type Metadata = object | null;');
+    expect(output).toContain('readonly metadata: Metadata,');
+    expect(output).toContain('fields.metadata === undefined ? this.metadata : fields.metadata,');
+    expect(output).not.toContain('option(fields.metadata).getOrElseValue(this.metadata)');
+  });
+
   it('serializes collection-wrapped nullable arrays with toArray instead of Option helpers', async () => {
     const spec = {
       components: {
@@ -756,6 +878,134 @@ describe('Renderer', () => {
     expect(output).toContain("'files': scatsToJsonValue(this.files),");
     expect(output).toContain("json['files'] as unknown as Blob | Buffer | Collection<Blob | Buffer>,");
     expect(output).not.toContain("Collection.from(option(json['files']).getOrElseValue([]))");
+  });
+
+  it('casts octet-stream request bodies to BodyInit for node-fetch', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          Asset: {
+            type: 'object',
+            properties: {
+              id: {type: 'integer'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/assets': {
+          post: {
+            operationId: 'uploadAsset',
+            requestBody: {
+              content: {
+                'application/octet-stream': {
+                  schema: {type: 'string', format: 'binary'}
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/Asset'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('body?: Blob | Buffer,');
+    expect(output).toContain('bodySerialised = body == null ? null : body as unknown as BodyInit;');
+    expect(output).not.toContain('bodySerialised = body ?? null;');
+  });
+
+  it('maps object refs named like binary built-ins to DTOs in scats responses', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          blob: {
+            type: 'object',
+            required: ['sha'],
+            properties: {
+              sha: {type: 'string'}
+            }
+          },
+          file: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: {type: 'string'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/blob': {
+          get: {
+            operationId: 'getBlob',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/blob'}
+                  }
+                }
+              }
+            }
+          }
+        },
+        '/file': {
+          get: {
+            operationId: 'getFile',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/file'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('export interface $Blob');
+    expect(output).toContain('export class $BlobDto');
+    expect(output).toContain('Promise<TryLike<$BlobDto>>');
+    expect(output).toContain('.map(res => $BlobDto.fromJson(res))');
+    expect(output).not.toContain('.map(res => Blob.fromJson(res))');
+    expect(output).toContain('export interface $File');
+    expect(output).toContain('export class $FileDto');
+    expect(output).toContain('Promise<TryLike<$FileDto>>');
+    expect(output).toContain('.map(res => $FileDto.fromJson(res))');
+    expect(output).not.toContain('.map(res => File.fromJson(res))');
   });
 
   it('includes inherited allOf properties in scats dto constructor and toJson', async () => {

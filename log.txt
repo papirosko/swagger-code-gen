@@ -1,9 +1,0 @@
-2026-08-07 openai cycle:
-- fixed inline object typing when schema has properties plus oneOf-only required branches; added unit test in test/components-parse.schemas.test.ts
-- fixed scats DTO detection for refs whose schema names contain punctuation (e.g. ImageRefParam-2 -> ImageRefParam2Dto); added unit test in test/components-parse.scats-unions.test.ts
-- fixed scats serialization for collection-wrapped nullable arrays to use .toArray instead of Option helpers; added renderer test in test/renderer.test.ts
-- fixed deduplication of repeated property names across allOf branches in SchemaObject.fromDefinition; added unit test in test/components-parse.schemas.test.ts
-- fixed node-fetch Response import aliasing and array header serialization earlier in the openai compile loop; covered by renderer tests
-Current remaining blocker for openai-openapi:
-- duplicate fields still appear in generated CreateChatCompletionRequestDto / toJson for some merged request schemas; next step is to localize the exact schema merge path that bypasses dedupe.
-- fixed SchemaObject.propsIncludingInherited() to track names added from parent chains and avoid duplicate inherited fields like top_logprobs across multi-level inheritance

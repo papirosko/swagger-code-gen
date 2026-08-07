@@ -5,6 +5,35 @@ import {Property} from '../src/property.js';
 import {emptyOptions} from './support/test-helpers.js';
 
 describe('components parsing - nullable handling', () => {
+  it('quotes string enum values even when enum property omits type', () => {
+    const enumSpec = {
+      components: {
+        schemas: {
+          DefaultConfiguration: {
+            type: 'object',
+            properties: {
+              defaultForNewRepos: {
+                enum: ['public', 'private_and_internal', 'all']
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(enumSpec);
+    const schemas = resolveSchemas(enumSpec, types, emptyOptions);
+    const container = schemas.get('DefaultConfiguration').get as SchemaObject;
+    const defaultForNewRepos = container.properties.toArray.find(p => p.name === 'defaultForNewRepos');
+
+    expect(defaultForNewRepos).toBeDefined();
+    expect((defaultForNewRepos as Property).jsType)
+      .toBe('\'public\' | \'private_and_internal\' | \'all\'');
+    expect((defaultForNewRepos as Property).scatsWrapperType)
+      .toBe('Option<\'public\' | \'private_and_internal\' | \'all\'>');
+  });
+
   it('keeps nullable string enums quoted in object properties', () => {
     const nullableEnumSpec = {
       components: {

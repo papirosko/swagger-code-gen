@@ -409,6 +409,9 @@ export class Property implements Schema {
             .map(ref => ref.substring(SCHEMA_PREFIX.length))
             .orElse(() => {
                 if (Property.hasType(definition, 'array') && option(definition.items).exists(i => Property.hasType(i, 'object') || Property.hasObjectProperties(i))) {
+                    if (parentClassname === '' && definition.items) {
+                        return some(Property.objectDefinitionToLiteral(definition.items, schemaTypes, options));
+                    }
                     inplace = some(definition.items);
                     return some(parentClassname + '$' + name);
                 } else {
@@ -539,7 +542,9 @@ export class Property implements Schema {
 
 
     get jsType(): string {
-        let res = Property.toJsType(this.type, this.items, this.format);
+        let res = this.referencesObject
+            ? NameUtils.normaliseClassname(this.type)
+            : Property.toJsType(this.type, this.items, this.format);
         const typeTokens = Property.typeTokens(this.type);
         const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
         const isNullableType = this.nullable || typeTokens.exists(t => t === 'null');
@@ -547,7 +552,7 @@ export class Property implements Schema {
             res = this.enumValues.get
                 .filter(v => v != null)
                 .map(enumValue => {
-                    if (isStringLike) {
+                    if (isStringLike || typeof enumValue === 'string') {
                         return Property.quoteTsStringLiteral(String(enumValue));
                     } else {
                         return enumValue;
@@ -593,6 +598,14 @@ export class Property implements Schema {
                         return 'object';
                     case 'file':
                         return 'File';
+                    case 'ArrayBuffer':
+                    case 'Blob':
+                    case 'BodyInit':
+                    case 'Buffer':
+                    case 'File':
+                    case 'FormData':
+                    case 'Request':
+                        return t;
                     case 'any':
                         return 'any';
                     case 'null':
@@ -676,7 +689,7 @@ export class Property implements Schema {
             jsType = this.enumValues.get
                 .filter(v => v != null)
                 .map(enumValue => {
-                    if (isStringLike) {
+                    if (isStringLike || typeof enumValue === 'string') {
                         return Property.quoteTsStringLiteral(String(enumValue));
                     } else {
                         return enumValue;

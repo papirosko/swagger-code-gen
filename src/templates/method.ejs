@@ -47,7 +47,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
 ): Promise<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
-    const queryParams = [];
+    const queryParams: string[] = [];
     <%_ method.parameters.filter(x => x.in === 'query' && x.required).foreach(p => { -%>
     <%_ if (p.isArray) { -%>
     <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
@@ -74,7 +74,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ }  -%>
 
     <%_ if (method.parameters.filter(x => x.in === 'cookie').nonEmpty) { -%>
-    const cookieParams = [];
+    const cookieParams: string[] = [];
     <%_ method.parameters.filter(x => x.in === 'cookie' && x.required).foreach(p => { -%>
     <%_ if (p.isArray) { -%>
     <%= method.wrapParamsInObject ? 'params.' : '' %><%= p.uniqueName %>.forEach(p => {
@@ -105,7 +105,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') { -%>
     bodySerialised = body != null ? objectToForm(body) : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/octet-stream') { -%>
-    bodySerialised = body ?? null;
+    bodySerialised = body == null ? null : body as unknown as BodyInit;
     <%_ }  -%>
 
     const headers: Record<string, string> = {
