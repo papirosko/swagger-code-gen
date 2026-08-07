@@ -39,7 +39,7 @@ export class Property implements Schema {
             option(p.itemReferencesObject).getOrElseValue(this.itemReferencesObject),
             option(p.enumValues).getOrElseValue(this.enumValues),
             option(p.inPlace).getOrElseValue(this.inPlace),
-            option(p.safeName).getOrElseValue(this.safeName),
+            option(p.safeName).orElse(() => option(this.safeName)).orUndefined,
         );
     }
 
@@ -230,7 +230,11 @@ export class Property implements Schema {
         const arrayMatch = typeValue.match(/^ReadonlyArray<(.+)>$/);
         if (arrayMatch) {
             const nestedDefinition = definition?.items;
-            return `ReadonlyArray<${Property.finalizeResolvedType(arrayMatch[1], nestedDefinition)}>`;
+            const nestedType = arrayMatch[1];
+            if (!nestedType) {
+                return typeValue;
+            }
+            return `ReadonlyArray<${Property.finalizeResolvedType(nestedType, nestedDefinition)}>`;
         }
         if (typeValue.includes('{')) {
             return typeValue;

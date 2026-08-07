@@ -1,11 +1,11 @@
 import log4js from 'log4js';
-import fetch from 'node-fetch';
+import fetch, {Headers} from 'node-fetch';
 import {Renderer} from './renderer.js';
 import {filterUsedSchemas, generateInPlace, resolvePaths, resolveSchemas, resolveSchemasTypes} from './components-parse.js';
 
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
-import {GenerationOptions} from './schemas';
+import {GenerationOptions, Schema} from './schemas';
 import {Collection, Option} from 'scats';
 import https from 'https';
 import {Method} from './method';
@@ -34,7 +34,7 @@ export async function main(url: string,
 
     const renderer = new Renderer();
     const headers = auth.map(a => new Headers({
-        'Authorization': `Basic ${btoa(a.user + ':' + a.password)}`
+        'Authorization': `Basic ${Buffer.from(`${a.user}:${a.password}`).toString('base64')}`
     }));
 
     fetch(url, {
@@ -50,9 +50,11 @@ export async function main(url: string,
                 ? filterUsedSchemas(paths, allSchemas, options.includeSchemasByMask)
                 : allSchemas;
             const inplace = generateInPlace(paths, schemasTypes, options, schemas);
+            const inplaceMap = inplace.toMap(s => [s.name, s as Schema]);
+            const schemasWithInplace = schemas.appendedAll(inplaceMap);
             logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
-            await renderer.renderToFile(schemas.appendedAll(inplace.toMap(s => [s.name, s])).values, paths, enableScats, targetNode, outputFile);
+            await renderer.renderToFile(schemasWithInplace.values, paths, enableScats, targetNode, outputFile);
             logger.debug(`Wrote client to ${outputFile}`);
 
         });

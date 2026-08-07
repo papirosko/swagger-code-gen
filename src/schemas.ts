@@ -96,16 +96,16 @@ export class SchemaEnum implements Schema {
                           readonly title: string,
                           readonly description: Option<string>,
                           readonly type: string,
-                          readonly defaultValue: Option<string | number>,
+                          readonly defaultValue: Option<string | number | boolean>,
                           readonly values: Collection<string>) {
     }
 
     static fromDefinition(name: string, def: OpenApiSchema) {
         return new SchemaEnum(
             name,
-            def.title,
+            def.title ?? name,
             option(def.description),
-            def.type,
+            def.type ?? 'string',
             option(def.default),
             option(def.enum).map(Collection.from).getOrElseValue(Nil)
         );
@@ -160,8 +160,10 @@ export class SchemaObject implements Schema {
         const propNames = props.map(p => p.name).toSet.toMutable;
         while (pendingParents.length > 0) {
             const parent = pendingParents.shift();
-            props.appendAll(parent.properties.filter(parentProp => !propNames.contains(parentProp.name)));
-            parent.parents.values.foreach(pp => pendingParents.push(pp));
+            if (parent) {
+                props.appendAll(parent.properties.filter(parentProp => !propNames.contains(parentProp.name)));
+                parent.parents.values.foreach(pp => pendingParents.push(pp));
+            }
         }
         return props.toCollection;
     }
@@ -218,7 +220,11 @@ export class SchemaObject implements Schema {
                     .map(props => Collection.from(Object.keys(props)))
                     .getOrElseValue(Nil)
                     .map(propName => {
-                            const property = Property.fromDefinition(name, propName, subSchema['properties'][propName], schemasTypes, options);
+                            const propertyDefinition = subSchema.properties?.[propName];
+                            if (!propertyDefinition) {
+                                throw new Error(`No property definition for ${name}.${propName}`);
+                            }
+                            const property = Property.fromDefinition(name, propName, propertyDefinition, schemasTypes, options);
                             return property.copy({
                                 required: explicitlyRequired.contains(propName) ? true : property.required
                             });
@@ -248,8 +254,8 @@ export class SchemaObject implements Schema {
             });
         });
 
-        return new SchemaObject(name, def.title, def.type, properties,
-            parents.toMap(p => [p, pool.get(p).get as SchemaObject]),
+        return new SchemaObject(name, def.title ?? name, def.type ?? 'object', properties,
+            parents.toMap(p => [p, pool.get(p).getOrElseThrow(() => new Error(`No parent schema for ${p}`)) as SchemaObject]),
             explicitlyRequired);
     }
 

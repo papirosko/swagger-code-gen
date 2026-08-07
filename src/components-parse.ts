@@ -68,7 +68,9 @@ export function resolveSchemas(json: any,
                         // in case of anyOf
                         return [rb + '$RequestBody', {
                             type: Collection.from(sharedBodyDef['content'][supportedMimeTypes.head]['schema']['anyOf'])
-                                .map(x => x['$ref'].toString().substring(SCHEMA_PREFIX.length)).mkString(' | ')
+                                .flatMapOption(x => option((x as { $ref?: string }).$ref)
+                                    .map(ref => ref.substring(SCHEMA_PREFIX.length)))
+                                .mkString(' | ')
                         }];
                     } else {
                         return [rb + '$RequestBody', {
@@ -167,6 +169,9 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
     const jsonSchemas = json.paths as OpenApiPaths;
     return Collection.from(Object.keys(jsonSchemas)).flatMap(path => {
         const pathItem = jsonSchemas[path];
+        if (!pathItem) {
+            return Nil;
+        }
         const pathLevelParameters = option(pathItem.parameters).getOrElseValue([]).map(p => resolveParamRef(p, json));
         return Collection.from(Object.keys(pathItem))
             .filter(methodName => httpMethods.has(methodName.toLowerCase()))
@@ -311,7 +316,7 @@ export function generateInPlace(paths: Collection<Method>,
             paths.flatMap(m => m.body)
                 .filter(b => option(b.inPlace).isDefined)
                 .map(m => {
-                    return SchemaObject.fromDefinition(m.inPlaceClassname, m.inPlace!, schemasTypes, options, pool);
+                    return SchemaObject.fromDefinition(m.inPlaceClassname!, m.inPlace!, schemasTypes, options, pool);
                 })
         )
         .appendedAll(

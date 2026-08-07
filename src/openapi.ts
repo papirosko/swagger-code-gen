@@ -1,18 +1,18 @@
 export interface OpenApiProperty {
-    type: string;
+    type?: string;
     format?: string;
     description?: string;
     nullable?: boolean;
-    required?: boolean;
+    required?: boolean | string[];
     default?: string | number | boolean;
     minimum?: number;
     maximum?: number;
     $ref?: string;
     enum?: string[];
     items?: OpenApiProperty;
-    oneOf?: OpenApiProperty[];
-    allOf?: OpenApiProperty[];
-    anyOf?: OpenApiProperty[];
+    oneOf?: Array<OpenApiProperty | OpenApiSchema>;
+    allOf?: Array<OpenApiProperty | OpenApiSchema>;
+    anyOf?: Array<OpenApiProperty | OpenApiSchema>;
     properties?: {
         [name: string]: OpenApiProperty;
     };
@@ -20,17 +20,20 @@ export interface OpenApiProperty {
 
 
 export interface OpenApiSchema {
+    readonly $ref?: string;
     readonly allOf?: Array<OpenApiProperty | OpenApiSchema>;
+    readonly oneOf?: Array<OpenApiProperty | OpenApiSchema>;
     readonly anyOf?: Array<OpenApiProperty | OpenApiSchema>;
-    readonly name: string;
-    readonly title: string;
+    readonly name?: string;
+    readonly title?: string;
     readonly description?: string;
-    readonly type: string;
+    readonly type?: string;
     readonly format?: string;
+    readonly nullable?: boolean;
     enum?: string[];
-    default?: string | number;
+    default?: string | number | boolean;
     required?: string[] | boolean;
-    properties: {
+    properties?: {
         [name: string]: OpenApiProperty;
     };
 }
@@ -38,10 +41,22 @@ export interface OpenApiSchema {
 export interface OpenApiParam {
     name: string;
     in: string;
+    type?: string;
     description?: string;
     required?: boolean;
     deprecated?: boolean;
-    schema: OpenApiSchema;
+    schema?: OpenApiSchema;
+}
+
+export interface OpenApiRequestBody {
+    description?: string;
+    required?: boolean;
+    $ref?: string;
+    content?: {
+        [mimeType: string]: {
+            schema: OpenApiSchema;
+        };
+    };
 }
 
 export interface OpenApiResponse {
@@ -59,17 +74,9 @@ export interface OpenApiMethod {
     description?: string;
     operationId?: string;
     parameters?: OpenApiParam[];
-    requestBody?: {
-        description?: string;
-        required?: boolean;
-        content?: {
-            [mimeType: string]: {
-                schema: OpenApiSchema;
-            };
-        };
-    };
+    requestBody?: OpenApiRequestBody;
     responses: {
-        [statusCode: number]: OpenApiResponse;
+        [statusCode: string]: OpenApiResponse;
     };
 }
 

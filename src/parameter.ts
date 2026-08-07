@@ -17,7 +17,7 @@ export class Parameter {
                 readonly referencedSchemas: Collection<string>,
                 readonly required: boolean,
                 readonly isArray: boolean,
-                readonly defaultValue: Option<string | number>,
+                readonly defaultValue: Option<string | number | boolean>,
                 readonly description: Option<string>) {
         this.in = inValue;
     }
@@ -30,7 +30,7 @@ export class Parameter {
         const rawName = def.name;
         const inValue = def.in;
         const desc = option(def.description);
-        let defaultValue: Option<string | number> = none;
+        let defaultValue: Option<string | number | boolean> = none;
         const references = new Set<string>();
         const schema = def.schema ?
             SchemaFactory.build(def.name, def.schema, schemas, options) :

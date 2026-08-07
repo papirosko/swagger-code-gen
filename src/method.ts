@@ -1,4 +1,4 @@
-import {OpenApiMethod, OpenApiParam, OpenApiProperty, OpenApiSchema} from './openapi.js';
+import {OpenApiMethod, OpenApiParam, OpenApiProperty, OpenApiResponse, OpenApiSchema} from './openapi.js';
 import {Collection, HashMap, HashSet, identity, Nil, Option, option} from 'scats';
 import {Property, SCHEMA_PREFIX} from './property.js';
 import {Parameter} from './parameter.js';
@@ -40,6 +40,12 @@ export interface RequestBody {
     inPlaceClassname?: string;
     rawSchema?: OpenApiSchema;
 }
+
+type BodyContentMap = {
+    [mimeType: string]: {
+        schema: OpenApiSchema;
+    };
+};
 
 
 export const supportedBodyMimeTypes: HashMap<string, string> = HashMap.of(
@@ -117,15 +123,16 @@ export class Method {
         });
 
         this.body = option(def.requestBody)
-            .flatMap(body =>
-                option(body.content)
+            .flatMap(requestBody =>
+                option(requestBody.content)
                     .orElse(() => {
                         // reference to shared body
-                        return option(body).filter(x =>
-                            option(x['$ref']).exists(ref => ref.toString().startsWith(SHARED_BODIES_PREFIX))
+                        return option(requestBody).filter(x =>
+                            option(x.$ref).exists(ref => ref.startsWith(SHARED_BODIES_PREFIX))
                         )
                             .map(x => {
-                                const referenced = pool.get(x['$ref'].substring(SHARED_BODIES_PREFIX.length) + '$RequestBody');
+                                const sharedRef = x.$ref!;
+                                const referenced = pool.get(sharedRef.substring(SHARED_BODIES_PREFIX.length) + '$RequestBody');
                                 if (referenced.exists(o => o instanceof Property)) {
                                     return {
                                         'application/json': {
@@ -139,41 +146,46 @@ export class Method {
                                     return {
                                         'application/json': {
                                             'schema': {
-                                                $ref: x['$ref'] + '$RequestBody'
+                                                $ref: sharedRef + '$RequestBody'
                                             } as unknown as OpenApiSchema,
                                         }
-                                    };
+                                    } as BodyContentMap;
                                 }
                             });
                     })
             )
             .map(body => {
-                const bodyRequired = option(def.requestBody.required).contains(true);
+                const bodyRequired = option(def.requestBody?.required).contains(true);
                 const mimeTypes = Collection.from(Object.keys(body));
                 const supportedMimeTypes = mimeTypes.filter(_ => supportedBodyMimeTypes.containsKey(_));
                 return supportedMimeTypes.map(mt => {
-                    const bodySchemaDef = body[mt].schema;
+                    const bodyEntry = body[mt];
+                    if (!bodyEntry) {
+                        throw new Error(`No request body definition for mime type ${mt}`);
+                    }
+                    const bodySchemaDef = bodyEntry.schema;
                     let res: Schema;
-                    let inPlaceClassname = null;
+                    let inPlaceClassname: string | null = null;
                     if (SchemaFactory.isEmptyObjectOrArray(bodySchemaDef)) {
                         res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,
                             required: bodyRequired,
                             type: 'object'
                         }, schemasTypes, options);
-                    } else if (bodySchemaDef['$ref']) {
-                        const ref = bodySchemaDef['$ref'].toString();
+                    } else if (bodySchemaDef.$ref) {
+                        const ref = bodySchemaDef.$ref;
                         res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,
                             $ref: ref.startsWith(SHARED_BODIES_PREFIX) ? SCHEMA_PREFIX + ref.substring(SHARED_BODIES_PREFIX.length, ref.length) : ref,
                             required: bodyRequired
                         }, schemasTypes, options);
                     } else if (
-                        bodySchemaDef['type'] === 'object' &&
-                        option(bodySchemaDef['properties']).map(props => Object.keys(props).length).getOrElseValue(0) > 0
+                        bodySchemaDef.type === 'object' &&
+                        option(bodySchemaDef.properties).map(props => Object.keys(props).length).getOrElseValue(0) > 0
                     ) {
                         // inplace object
-                        inPlaceClassname = NameUtils.normaliseClassname(def.operationId + 'Body$' + method);
+                        const operationName = def.operationId ?? `${method}${Method.pathToName(path)}`;
+                        inPlaceClassname = NameUtils.normaliseClassname(operationName + 'Body$' + method);
                         res = Property.fromDefinition(
                             inPlaceClassname,
                             'body',
@@ -184,14 +196,15 @@ export class Method {
                             schemasTypes.appended(inPlaceClassname, 'object'),
                             options
                         );
-                    } else if (bodySchemaDef['type'] || bodySchemaDef['oneOf'] || bodySchemaDef['anyOf']) {
+                    } else if (bodySchemaDef.type || bodySchemaDef.oneOf || bodySchemaDef.anyOf) {
                         res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,
                             required: bodyRequired
                         }, schemasTypes, options);
                     } else {
                         // inplace object
-                        inPlaceClassname = NameUtils.normaliseClassname(def.operationId + 'Body$' + method);
+                        const operationName = def.operationId ?? `${method}${Method.pathToName(path)}`;
+                        inPlaceClassname = NameUtils.normaliseClassname(operationName + 'Body$' + method);
                         res = Property.fromDefinition(
                             inPlaceClassname,
                             'body',
@@ -209,7 +222,7 @@ export class Method {
                         // may be wrong. We make nullable value true only if it is explicitly requested.
                         const bProperty = res as Property;
                         res = bProperty.copy({
-                            nullable: bProperty.referencesObject ? option(bodySchemaDef['nullable']).contains(true) : bProperty.nullable,
+                            nullable: bProperty.referencesObject ? option(bodySchemaDef.nullable).contains(true) : bProperty.nullable,
                             required: bodyRequired
                         });
                     }
@@ -236,15 +249,14 @@ export class Method {
             .filter(code => code / 100 === 2)
             .minByOption(identity);
 
-        const respDef = successCode.map(_ => def.responses[_])
+        const respDef = successCode.flatMap(code => option(def.responses[String(code)]))
             .orElse(() => option(def.responses['default']))
-            .orElse(() => statusCodes.headOption.flatMap(code => option(def.responses[code])))
-            .getOrElseValue({});
+            .orElse(() => statusCodes.headOption.flatMap(code => option(def.responses[String(code)])))
+            .getOrElseValue({} as OpenApiResponse);
 
         const mimeTypes = option(respDef.content)
-            .map(content => Collection.from(Object.keys(content)).toMap(mimeType =>
-                [mimeType, content[mimeType]]
-            )).getOrElseValue(HashMap.empty);
+            .map(content => Collection.from(Object.entries(content) as Array<[string, { schema: OpenApiSchema }]>).toMap(entry => entry))
+            .getOrElseValue(HashMap.empty);
 
         const responseMimeType = mimeTypes.get('application/json')
             .map(_ => 'application/json')
@@ -255,6 +267,8 @@ export class Method {
         this.response = mimeTypes.get(responseMimeType)
             .filter(p => option(p.schema).isDefined || responseParseMode === 'text' || responseParseMode === 'bytes')
             .map(p => {
+                const responseSchema = p.schema;
+
                 if (responseParseMode === 'bytes') {
                     const r = Property.fromDefinition('', '', {type: 'any'}, schemasTypes, options).copy({
                         nullable: false,
@@ -266,7 +280,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
-                        rawSchema: p.schema,
+                        rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
 
@@ -281,19 +295,20 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
-                        rawSchema: p.schema,
+                        rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
 
-                if (p.schema.type === 'object' && p.schema['properties'] && Object.keys(p.schema['properties']).length > 0) {
+                if (responseSchema.type === 'object' && responseSchema.properties && Object.keys(responseSchema.properties).length > 0) {
 
-                    const inPlaceObject = NameUtils.normaliseClassname(def.operationId + 'Response$' + method);
+                    const operationName = def.operationId ?? `${method}${Method.pathToName(path)}`;
+                    const inPlaceObject = NameUtils.normaliseClassname(operationName + 'Response$' + method);
 
                     const r = Property.fromDefinition(
                         inPlaceObject,
                         '',
                         {
-                            ...p.schema,
+                            ...responseSchema,
                             $ref: SCHEMA_PREFIX + inPlaceObject
                         },
                         schemasTypes.appended(inPlaceObject, 'object'),
@@ -306,14 +321,14 @@ export class Method {
                         asProperty: r,
                         responseType: inPlaceObject,
                         description: respDef.description,
-                        inPlace: p.schema,
+                        inPlace: responseSchema,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
-                        rawSchema: p.schema,
+                        rawSchema: responseSchema,
                     } as ResponseDetails;
 
                 } else {
-                    const r = Property.fromDefinition('', '', p.schema, schemasTypes, options).copy({
+                    const r = Property.fromDefinition('', '', responseSchema, schemasTypes, options).copy({
                         nullable: false,
                         required: true,
                     });
@@ -323,7 +338,7 @@ export class Method {
                         description: respDef.description,
                         mimeType: responseMimeType,
                         parseMode: responseParseMode,
-                        rawSchema: p.schema,
+                        rawSchema: responseSchema,
                     } as ResponseDetails;
                 }
             })
@@ -368,7 +383,7 @@ export class Method {
         if (s.length <= 0) {
             return s;
         } else {
-            return s[0].toUpperCase() + s.substring(1);
+            return s.charAt(0).toUpperCase() + s.substring(1);
         }
     }
 }
