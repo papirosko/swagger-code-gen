@@ -158,4 +158,177 @@ describe('components parsing', () => {
     expect(usedSchemas.keySet.toArray).toEqual(expect.arrayContaining(['Pet', 'Status']));
     expect(usedSchemas.keySet.size).toBe(2);
   });
+
+  it('keeps inline oneOf request bodies as unions and retains referenced schemas', () => {
+    const requestBodyOneOfSpec = {
+      components: {
+        schemas: {
+          AlphaVariant: {
+            title: 'AlphaVariant',
+            type: 'object',
+            properties: {
+              kind: { type: 'string' },
+              alphaCode: { type: 'string' }
+            }
+          },
+          BetaVariant: {
+            title: 'BetaVariant',
+            type: 'object',
+            properties: {
+              kind: { type: 'string' },
+              betaCount: { type: 'integer' }
+            }
+          },
+          ActionResponse: {
+            title: 'ActionResponse',
+            type: 'object',
+            properties: {
+              ok: { type: 'boolean' }
+            }
+          }
+        }
+      },
+      paths: {
+        '/custom/submit': {
+          post: {
+            tags: ['public'],
+            operationId: 'submitCustomAction',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    oneOf: [
+                      { $ref: '#/components/schemas/AlphaVariant' },
+                      { $ref: '#/components/schemas/BetaVariant' }
+                    ]
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/ActionResponse' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const options: GenerationOptions = {
+      ...emptyOptions,
+      onlyUsedSchemas: true
+    };
+    const types = resolveSchemasTypes(requestBodyOneOfSpec);
+    const schemas = resolveSchemas(requestBodyOneOfSpec, types, options);
+    const methods = resolvePaths(requestBodyOneOfSpec, types, options, schemas);
+
+    expect(methods.size).toBe(1);
+    expect(methods.head.body.size).toBe(1);
+
+    const requestBody = methods.head.body.head.body;
+    expect(requestBody).toBeInstanceOf(Property);
+    expect((requestBody as Property).jsType).toBe('AlphaVariant | BetaVariant');
+
+    const usedSchemas = filterUsedSchemas(methods, schemas);
+    expect(usedSchemas.keySet.toArray).toEqual(
+      expect.arrayContaining(['AlphaVariant', 'BetaVariant', 'ActionResponse'])
+    );
+  });
+
+  it('keeps nullable string enums quoted in object properties', () => {
+    const nullableEnumSpec = {
+      components: {
+        schemas: {
+          NullableEnumContainer: {
+            title: 'NullableEnumContainer',
+            type: 'object',
+            properties: {
+              'service_tier': {
+                enum: ['auto', 'default', 'fast', 'flex', 'priority', 'scale', null],
+                type: ['string', 'null']
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(nullableEnumSpec);
+    const schemas = resolveSchemas(nullableEnumSpec, types, emptyOptions);
+    const container = schemas.get('NullableEnumContainer').get as SchemaObject;
+    const serviceTier = container.properties.toArray.find(p => p.name === 'service_tier');
+
+    expect(serviceTier).toBeDefined();
+    expect((serviceTier as Property).jsType)
+      .toBe('\'auto\' | \'default\' | \'fast\' | \'flex\' | \'priority\' | \'scale\' | null');
+  });
+
+
+  it('keeps nullable string enums out of Option inner nulls', () => {
+    const nullableEnumSpec = {
+      components: {
+        schemas: {
+          NullableEnumContainer: {
+            title: 'NullableEnumContainer',
+            type: 'object',
+            properties: {
+              'service_tier': {
+                enum: ['auto', 'default', 'fast', 'flex', 'priority', 'scale', null],
+                type: ['string', 'null']
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(nullableEnumSpec);
+    const schemas = resolveSchemas(nullableEnumSpec, types, emptyOptions);
+    const container = schemas.get('NullableEnumContainer').get as SchemaObject;
+    const serviceTier = container.properties.toArray.find(p => p.name === 'service_tier');
+
+    expect(serviceTier).toBeDefined();
+    expect((serviceTier as Property).jsType)
+      .toBe('\'auto\' | \'default\' | \'fast\' | \'flex\' | \'priority\' | \'scale\' | null');
+    expect((serviceTier as Property).scatsWrapperType)
+      .toBe('Option<\'auto\' | \'default\' | \'fast\' | \'flex\' | \'priority\' | \'scale\'>');
+  });
+
+  it('strips null from primitive types wrapped in Option', () => {
+    const nullablePrimitiveSpec = {
+      components: {
+        schemas: {
+          NullablePrimitiveContainer: {
+            title: 'NullablePrimitiveContainer',
+            type: 'object',
+            properties: {
+              'session_id': {
+                type: ['string', 'null']
+              }
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(nullablePrimitiveSpec);
+    const schemas = resolveSchemas(nullablePrimitiveSpec, types, emptyOptions);
+    const container = schemas.get('NullablePrimitiveContainer').get as SchemaObject;
+    const sessionId = container.properties.toArray.find(p => p.name === 'session_id');
+
+    expect(sessionId).toBeDefined();
+    expect((sessionId as Property).jsType).toBe('string | null');
+    expect((sessionId as Property).scatsWrapperType).toBe('Option<string>');
+  });
+
 });

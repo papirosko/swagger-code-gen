@@ -167,9 +167,9 @@ export class Method {
                             $ref: ref.startsWith(SHARED_BODIES_PREFIX) ? SCHEMA_PREFIX + ref.substring(SHARED_BODIES_PREFIX.length, ref.length) : ref,
                             required: bodyRequired
                         }, schemasTypes, options);
-                    } else if (bodySchemaDef['type']) {
+                    } else if (bodySchemaDef['type'] || bodySchemaDef['oneOf'] || bodySchemaDef['anyOf']) {
                         res = Property.fromDefinition('', 'body', {
-                            type: bodySchemaDef['type'],
+                            ...bodySchemaDef as OpenApiProperty,
                             required: bodyRequired
                         }, schemasTypes, options);
                     } else {

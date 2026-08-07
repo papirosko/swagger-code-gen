@@ -174,11 +174,15 @@ export class Property implements Schema {
 
     get jsType(): string {
         let res = Property.toJsType(this.type, this.items, this.format);
+        const typeTokens = Collection.from(Array.isArray(this.type) ? this.type : this.type.split('|'))
+            .map(t => t.trim());
+        const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
+        const isNullableType = this.nullable || typeTokens.exists(t => t === 'null');
         if (this.enumValues.exists(x => x.nonEmpty)) {
             res = this.enumValues.get
                 .filter(v => v != null)
                 .map(enumValue => {
-                    if (this.type === 'string') {
+                    if (isStringLike) {
                         return `'${enumValue}'`;
                     } else {
                         return enumValue;
@@ -186,7 +190,7 @@ export class Property implements Schema {
                 })
                 .mkString(' | ');
         }
-        if (this.nullable) {
+        if (isNullableType) {
             res = res + ' | null';
         }
         // Deduplicate union members (e.g. multiple inline objects resolving to 'object')
@@ -309,11 +313,14 @@ export class Property implements Schema {
             }
         } else {
             let jsType = Property.toJsType(this.type, this.items, this.format);
+            const typeTokens = Collection.from(Array.isArray(this.type) ? this.type : this.type.split('|'))
+                .map(t => t.trim());
+            const isStringLike = typeTokens.exists(t => t === 'string' || t === 'String');
             if (this.enumValues.exists(x => x.nonEmpty)) {
                 jsType = this.enumValues.get
                     .filter(v => v != null)
                     .map(enumValue => {
-                        if (this.type === 'string') {
+                        if (isStringLike) {
                             return `'${enumValue}'`;
                         } else {
                             return enumValue;
@@ -323,7 +330,9 @@ export class Property implements Schema {
             }
             jsType = [...new Set(jsType.split(' | ').map(t => {
                 switch (t) { case 'String': return 'string'; case 'Number': return 'number'; case 'Boolean': return 'boolean'; case 'Object': return 'object'; default: return t; }
-            }))].join(' | ');
+            }))]
+                .filter(t => t !== 'null')
+                .join(' | ');
             return !this.nullable && this.required ? this.jsType : `Option<${jsType}>`;
         }
     }
