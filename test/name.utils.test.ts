@@ -27,6 +27,11 @@ describe('NameUtils', () => {
       expect(NameUtils.normalisePropertyName('meta.data.version')).toBe('meta_data_version');
     });
 
+    it('replaces brackets and other invalid identifier characters with underscores', () => {
+      expect(NameUtils.normalisePropertyName('timestamp_granularities[]')).toBe('timestamp_granularities__');
+      expect(NameUtils.normalisePropertyName('field/name')).toBe('field_name');
+    });
+
     it('escapes reserved words and invalid identifier starts', () => {
       expect(NameUtils.normalisePropertyName('function')).toBe('$function');
       expect(NameUtils.normalisePropertyName('1name')).toBe('$1name');

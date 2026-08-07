@@ -167,6 +167,22 @@ export class Method {
                             $ref: ref.startsWith(SHARED_BODIES_PREFIX) ? SCHEMA_PREFIX + ref.substring(SHARED_BODIES_PREFIX.length, ref.length) : ref,
                             required: bodyRequired
                         }, schemasTypes, options);
+                    } else if (
+                        bodySchemaDef['type'] === 'object' &&
+                        option(bodySchemaDef['properties']).map(props => Object.keys(props).length).getOrElseValue(0) > 0
+                    ) {
+                        // inplace object
+                        inPlaceClassname = NameUtils.normaliseClassname(def.operationId + 'Body$' + method);
+                        res = Property.fromDefinition(
+                            inPlaceClassname,
+                            'body',
+                            {
+                                ...bodySchemaDef as OpenApiProperty,
+                                $ref: SCHEMA_PREFIX + inPlaceClassname
+                            },
+                            schemasTypes.appended(inPlaceClassname, 'object'),
+                            options
+                        );
                     } else if (bodySchemaDef['type'] || bodySchemaDef['oneOf'] || bodySchemaDef['anyOf']) {
                         res = Property.fromDefinition('', 'body', {
                             ...bodySchemaDef as OpenApiProperty,

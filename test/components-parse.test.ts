@@ -242,6 +242,66 @@ describe('components parsing', () => {
     );
   });
 
+  it('assigns a concrete type name to inline object request bodies', () => {
+    const inlineObjectBodySpec = {
+      components: {
+        schemas: {
+          InlineObjectResponse: {
+            title: 'InlineObjectResponse',
+            type: 'object',
+            properties: {
+              ok: { type: 'boolean' }
+            }
+          }
+        }
+      },
+      paths: {
+        '/custom/object-body': {
+          post: {
+            tags: ['public'],
+            operationId: 'submitInlineObject',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      token: { type: 'string' },
+                      count: { type: 'integer' }
+                    },
+                    required: ['token']
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/InlineObjectResponse' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(inlineObjectBodySpec);
+    const schemas = resolveSchemas(inlineObjectBodySpec, types, emptyOptions);
+    const methods = resolvePaths(inlineObjectBodySpec, types, emptyOptions, schemas);
+
+    expect(methods.size).toBe(1);
+    expect(methods.head.body.size).toBe(1);
+
+    const requestBody = methods.head.body.head.body;
+    expect(requestBody).toBeInstanceOf(Property);
+    expect((requestBody as Property).jsType).toBe('SubmitInlineObjectBody$post');
+  });
+
   it('keeps nullable string enums quoted in object properties', () => {
     const nullableEnumSpec = {
       components: {

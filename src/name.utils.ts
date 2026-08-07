@@ -106,7 +106,7 @@ export class NameUtils {
 
 
     static normalisePropertyName(n: string): string {
-        return NameUtils.escapeIdentifier(n.replace(/[.-]/g, '_'));
+        return NameUtils.escapeIdentifier(n.replace(/[^A-Za-z0-9_$]/g, '_'));
     }
 
     static escapeIdentifier(n: string): string {
