@@ -37,26 +37,23 @@ export async function main(url: string,
         'Authorization': `Basic ${Buffer.from(`${a.user}:${a.password}`).toString('base64')}`
     }));
 
-    fetch(url, {
+    const response = await fetch(url, {
         headers: headers.orUndefined,
         agent: httpsAgent
-    })
-        .then(res => res.json())
-        .then(async (json: any) => {
-            const schemasTypes = resolveSchemasTypes(json);
-            const allSchemas = resolveSchemas(json, schemasTypes, options);
-            const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, allSchemas);
-            const schemas = options.onlyUsedSchemas
-                ? filterUsedSchemas(paths, allSchemas, options.includeSchemasByMask)
-                : allSchemas;
-            const inplace = generateInPlace(paths, schemasTypes, options, schemas);
-            const inplaceMap = inplace.toMap(s => [s.name, s as Schema]);
-            const schemasWithInplace = schemas.appendedAll(inplaceMap);
-            logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
+    });
 
-            await renderer.renderToFile(schemasWithInplace.values, paths, enableScats, targetNode, outputFile);
-            logger.debug(`Wrote client to ${outputFile}`);
+    const json: any = await response.json();
+    const schemasTypes = resolveSchemasTypes(json);
+    const allSchemas = resolveSchemas(json, schemasTypes, options);
+    const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, allSchemas);
+    const schemas = options.onlyUsedSchemas
+        ? filterUsedSchemas(paths, allSchemas, options.includeSchemasByMask)
+        : allSchemas;
+    const inplace = generateInPlace(paths, schemasTypes, options, schemas);
+    const inplaceMap = inplace.toMap(s => [s.name, s as Schema]);
+    const schemasWithInplace = schemas.appendedAll(inplaceMap);
+    logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
-        });
-
+    await renderer.renderToFile(schemasWithInplace.values, paths, enableScats, targetNode, outputFile);
+    logger.debug(`Wrote client to ${outputFile}`);
 }

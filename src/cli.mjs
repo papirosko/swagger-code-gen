@@ -37,18 +37,22 @@ const excludeTags = HashSet.from(program.opts().excludeTags || []);
 const onlyUsedSchemas = program.opts().onlyUsedSchemas;
 const includeSchemasByMask = HashSet.from(program.opts().includeSchemasByMask || []);
 
-main(url, enableScats, targetNode, outputFile,
-    ignoreSSLErrors,
-    option(user).flatMap(u => option(password).map(p => ({
-        user: u,
-        password: p
-    }))),
-    {
-    referencedObjectsNullableByDefault: referencedObjectsNullableByDefault,
-    includeTags: includeTags,
-    excludeTags: excludeTags,
-    onlyUsedSchemas: onlyUsedSchemas,
-    includeSchemasByMask: includeSchemasByMask
-}).then(() => {
-    // nothing
-});
+try {
+    await main(url, enableScats, targetNode, outputFile,
+        ignoreSSLErrors,
+        option(user).flatMap(u => option(password).map(p => ({
+            user: u,
+            password: p
+        }))),
+        {
+            referencedObjectsNullableByDefault: referencedObjectsNullableByDefault,
+            includeTags: includeTags,
+            excludeTags: excludeTags,
+            onlyUsedSchemas: onlyUsedSchemas,
+            includeSchemasByMask: includeSchemasByMask
+        });
+} catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to generate client: ${message}`);
+    process.exitCode = 1;
+}

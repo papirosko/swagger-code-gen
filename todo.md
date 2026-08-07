@@ -24,7 +24,7 @@
   - Generate a few fixtures and run `tsc --noEmit` against emitted clients.
   - Cover `--targetNode`, browser mode, `--enableScats`, and filtered schemas.
 
-- [ ] Fix async flow in CLI entrypoint
+- [x] Fix async flow in CLI entrypoint
   - Make `main()` await and return the fetch/render pipeline.
   - Ensure process exits non-zero on network, parse, or file write failures.
 
