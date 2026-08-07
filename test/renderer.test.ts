@@ -756,7 +756,7 @@ describe('Renderer', () => {
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly $copy: Option<string>,');
     expect(output).toContain('fields.$copy === undefined ? this.$copy : fields.$copy,');
-    expect(output).toContain("'copy': this.$copy.map(value => scatsToJsonValue(value)).orUndefined,");
+    expect(output).toContain('\'copy\': this.$copy.map(value => scatsToJsonValue(value)).orUndefined,');
   });
 
   it('keeps explicit nulls when copying required nullable alias fields', async () => {
@@ -833,10 +833,10 @@ describe('Renderer', () => {
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly items: Collection<string>,');
-    expect(output).toContain("'items': this.items");
+    expect(output).toContain('\'items\': this.items');
     expect(output).toContain('.toArray,');
-    expect(output).not.toContain("'items': this.items.map(value => scatsToJsonValue(value)).orNull");
-    expect(output).not.toContain("'items': this.items.map(value => scatsToJsonValue(value)).orUndefined");
+    expect(output).not.toContain('\'items\': this.items.map(value => scatsToJsonValue(value)).orNull');
+    expect(output).not.toContain('\'items\': this.items.map(value => scatsToJsonValue(value)).orUndefined');
   });
 
   it('does not treat scalar-or-array binary unions as pure collections in scats DTOs', async () => {
@@ -875,9 +875,9 @@ describe('Renderer', () => {
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly files: Blob | Buffer | Collection<Blob | Buffer>,');
-    expect(output).toContain("'files': scatsToJsonValue(this.files),");
-    expect(output).toContain("json['files'] as unknown as Blob | Buffer | Collection<Blob | Buffer>,");
-    expect(output).not.toContain("Collection.from(option(json['files']).getOrElseValue([]))");
+    expect(output).toContain('\'files\': scatsToJsonValue(this.files),');
+    expect(output).toContain('json[\'files\'] as unknown as Blob | Buffer | Collection<Blob | Buffer>,');
+    expect(output).not.toContain('Collection.from(option(json[\'files\']).getOrElseValue([]))');
   });
 
   it('casts octet-stream request bodies to BodyInit for node-fetch', async () => {
@@ -1051,9 +1051,9 @@ describe('Renderer', () => {
     expect(output).toContain('readonly id: string,');
     expect(output).toContain('readonly role: string,');
     expect(output).toContain('readonly value: Option<string>,');
-    expect(output).toContain("'id': scatsToJsonValue(this.id),");
-    expect(output).toContain("'role': scatsToJsonValue(this.role),");
-    expect(output).toContain("'value': this.value.map(value => scatsToJsonValue(value)).orUndefined,");
+    expect(output).toContain('\'id\': scatsToJsonValue(this.id),');
+    expect(output).toContain('\'role\': scatsToJsonValue(this.role),');
+    expect(output).toContain('\'value\': this.value.map(value => scatsToJsonValue(value)).orUndefined,');
   });
 
   it('aliases fetch Response import when schema names include Response', async () => {
@@ -1097,7 +1097,7 @@ describe('Renderer', () => {
     await renderer.renderToFile(schemasMap.values, methods, false, true, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
-    expect(output).toContain("import fetch, {Request, Response as FetchResponse, BodyInit} from 'node-fetch';");
+    expect(output).toContain('import fetch, {Request, Response as FetchResponse, BodyInit} from \'node-fetch\';');
     expect(output).toContain('requestExecutor?: (request: Request) => Promise<FetchResponse>;');
     expect(output).toContain('async function readResponseText(response: FetchResponse): Promise<string>');
   });
@@ -1147,6 +1147,6 @@ describe('Renderer', () => {
     await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
-    expect(output).toContain("...(openaiBeta != null ? {'openai-beta': openaiBeta.join(',')} : {}),");
+    expect(output).toContain('...(openaiBeta != null ? {\'openai-beta\': openaiBeta.join(\',\')} : {}),');
   });
 });
