@@ -30,13 +30,14 @@
 
 ## Generator quality
 
-- [ ] Encode path parameters safely
+- [x] Encode path parameters safely
   - Apply `encodeURIComponent` to path substitutions, not only query params.
 
 - [ ] Better response parsing strategy
-  - Handle `204 No Content` explicitly.
-  - Avoid relying only on `content-length`.
-  - Respect `content-type` more strictly for `json | text | bytes` parsing.
+  - [x] Handle `204 No Content` explicitly.
+  - [x] Avoid relying only on `content-length`.
+  - [x] Respect `content-type` more strictly for `json | text | bytes` parsing.
+  - [ ] Align generated return types for no-content responses (e.g. `Promise<void>`).
 
 - [ ] Stronger support for cookies and auth schemes
   - Generate cookie parameter handling.

@@ -115,6 +115,26 @@ async function readResponseText(response: Response): Promise<string> {
     }
 }
 
+function hasResponseBody(response: Response): boolean {
+    if (response.status === 204 || response.status === 205 || response.status === 304) {
+        return false;
+    }
+    const contentLength = response.headers.get('content-length');
+    if (contentLength == null) {
+        return true;
+    }
+    const parsed = parseInt(contentLength, 10);
+    return Number.isNaN(parsed) || parsed > 0;
+}
+
+function isJsonContentType(contentType: string | null): boolean {
+    if (contentType == null) {
+        return false;
+    }
+    const mimeType = contentType.split(';', 1)[0]?.trim().toLowerCase();
+    return mimeType === 'application/json' || mimeType?.endsWith('+json') === true;
+}
+
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions, parseMode: ResponseParseMode = 'json'): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
     const requestExecutor = requestOptions.requestExecutor ?? fetch;
@@ -122,9 +142,19 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions, 
     const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
     if (postProcessed.ok) {
         if (parseMode === 'text') {
+            if (!hasResponseBody(postProcessed)) {
+                return '' as T;
+            }
             return (await readResponseText(postProcessed)) as T;
         }
         if (parseMode === 'bytes') {
+            if (!hasResponseBody(postProcessed)) {
+                <% if (targetNode) { %>
+                return Buffer.alloc(0) as T;
+                <% } else { %>
+                return new ArrayBuffer(0) as T;
+                <% } %>
+            }
             <% if (targetNode) { %>
             return Buffer.from(await postProcessed.arrayBuffer()) as T;
             <% } else { %>
@@ -132,17 +162,21 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions, 
             <% } %>
         }
 
-        let json: any = null;
-        if (postProcessed.headers.has('content-length')) {
-            const ctLent = postProcessed.headers.get('content-length');
-            const ct = ctLent != null ? parseInt(ctLent): 0;
-            if (ct > 0) {
-                json = JSON.parse((await readResponseText(postProcessed)).replace(/^\uFEFF/, ''))
-            }
-        } else {
-            json = JSON.parse((await readResponseText(postProcessed)).replace(/^\uFEFF/, ''))
+        if (!hasResponseBody(postProcessed)) {
+            return undefined as T;
         }
-        return json as T;
+
+        const payload = (await readResponseText(postProcessed)).replace(/^\uFEFF/, '');
+        if (payload.length === 0) {
+            return undefined as T;
+        }
+
+        const contentType = postProcessed.headers.get('content-type');
+        if (contentType != null && !isJsonContentType(contentType)) {
+            throw new Error(`Expected JSON response but received content-type: ${contentType}`);
+        }
+
+        return JSON.parse(payload) as T;
     } else {
         throw postProcessed;
     }

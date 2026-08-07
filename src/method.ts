@@ -364,7 +364,7 @@ export class Method {
             const remappedName = this.parameters.find(p => p.rawName === group && p.in === 'path')
                 .map(_ => _.uniqueName)
                 .getOrElseValue(group);
-            return `\${${paramPrefix}${remappedName}}`;
+            return `\${encodeURIComponent(String(${paramPrefix}${remappedName}))}`;
         });
     }
 
