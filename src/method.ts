@@ -327,7 +327,7 @@ export class Method {
                         schemasTypes.appended(inPlaceObject, 'object'),
                         options
                     ).copy({
-                        nullable: false,
+                        nullable: option(responseSchema.nullable).contains(true),
                         required: true
                     });
                     return {
@@ -342,8 +342,9 @@ export class Method {
                     } as ResponseDetails;
 
                 } else {
-                    const r = Property.fromDefinition('', '', responseSchema, schemasTypes, options).copy({
-                        nullable: false,
+                    const responseProperty = Property.fromDefinition('', '', responseSchema, schemasTypes, options);
+                    const r = responseProperty.copy({
+                        nullable: responseProperty.nullable,
                         required: true,
                     });
                     return {
