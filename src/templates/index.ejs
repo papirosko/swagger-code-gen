@@ -26,6 +26,12 @@ import {option, Option, Collection, Try, TryLike, none} from 'scats';
 
 export interface RequestOptions {
     signal?: AbortSignal,
+    /**
+     * Maximum time in milliseconds for the generated client to receive and process the response.
+     * The timeout starts before executing the request and includes waiting for response headers,
+     * running postProcessResponse, and reading the success response body.
+     */
+    readTimeoutMs?: number;
     apiPrefix?: string;
     headers?: Record<string, string>;
     requestExecutor?: (request: Request) => Promise<<%= target.responseTypeName %>>;
@@ -115,6 +121,124 @@ function objectToFormWwwEncoded(o: Record<string, any>): string {
 
 type ResponseParseMode = 'json' | 'text' | 'bytes';
 
+type DestroyableStream = {
+    destroy?: (error?: Error) => void;
+};
+
+type CancellableStream = {
+    cancel?: (reason?: unknown) => Promise<void>;
+};
+
+type RequestTimeoutState = {
+    signal?: AbortSignal;
+    timedOut: () => boolean;
+    timeoutError?: Error;
+    clear: () => void;
+};
+
+function getAbortReason(signal: AbortSignal): unknown {
+    return (signal as AbortSignal & { reason?: unknown }).reason;
+}
+
+function abortErrorFromReason(reason: unknown): Error {
+    if (reason instanceof Error) {
+        return reason;
+    }
+    return new Error('Request aborted');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted === true) {
+        throw abortErrorFromReason(getAbortReason(signal));
+    }
+}
+
+function createRequestTimeoutSignal(externalSignal: AbortSignal | undefined, readTimeoutMs: number | undefined): RequestTimeoutState {
+    if (readTimeoutMs == null) {
+        return {
+            signal: externalSignal,
+            timedOut: () => false,
+            clear: () => {}
+        };
+    }
+
+    const timeoutError = new Error(`Request read timed out after ${readTimeoutMs}ms`);
+    const abortController = new AbortController();
+    let timedOut = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const abortWithExternalReason = () => {
+        abortController.abort(getAbortReason(externalSignal!));
+    };
+
+    if (externalSignal?.aborted === true) {
+        abortWithExternalReason();
+    } else {
+        externalSignal?.addEventListener('abort', abortWithExternalReason, {once: true});
+        timeoutId = setTimeout(() => {
+            timedOut = true;
+            abortController.abort(timeoutError);
+        }, readTimeoutMs);
+    }
+
+    return {
+        signal: abortController.signal,
+        timedOut: () => timedOut,
+        timeoutError: timeoutError,
+        clear: () => {
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
+            externalSignal?.removeEventListener('abort', abortWithExternalReason);
+        }
+    };
+}
+
+async function abortResponseBody(response: <%= target.responseTypeName %>, error: Error): Promise<void> {
+    const body = response.body;
+    if (body == null) {
+        return;
+    }
+
+    const destroyableBody = body as DestroyableStream;
+    if (typeof destroyableBody.destroy === 'function') {
+        destroyableBody.destroy(error);
+        return;
+    }
+
+    const cancellableBody = body as CancellableStream;
+    if (typeof cancellableBody.cancel === 'function') {
+        try {
+            await cancellableBody.cancel(error);
+        } catch {}
+    }
+}
+
+async function readResponseArrayBuffer(response: <%= target.responseTypeName %>, signal?: AbortSignal): Promise<ArrayBuffer> {
+    throwIfAborted(signal);
+
+    if (signal == null) {
+        return await response.arrayBuffer();
+    }
+
+    let rejectOnAbort: ((error: Error) => void) | undefined;
+    const abortPromise = new Promise<never>((_, reject) => {
+        rejectOnAbort = reject;
+    });
+    const abort = () => {
+        const error = abortErrorFromReason(getAbortReason(signal));
+        void abortResponseBody(response, error);
+        rejectOnAbort?.(error);
+    };
+
+    signal.addEventListener('abort', abort, {once: true});
+    try {
+        return await Promise.race([response.arrayBuffer(), abortPromise]);
+    } finally {
+        signal.removeEventListener('abort', abort);
+    }
+}
+
 function normaliseCharset(charset: string): string {
     const normalized = charset.trim().toLowerCase();
     if (normalized === 'cp1251') {
@@ -131,8 +255,8 @@ function extractCharset(contentType: string | null): string {
     return normaliseCharset(match?.[2] || 'utf-8');
 }
 
-async function readResponseText(response: <%= target.responseTypeName %>): Promise<string> {
-    const payload = await response.arrayBuffer();
+async function readResponseText(response: <%= target.responseTypeName %>, signal?: AbortSignal): Promise<string> {
+    const payload = await readResponseArrayBuffer(response, signal);
     const charset = extractCharset(response.headers.get('content-type'));
     try {
         return new TextDecoder(charset).decode(payload);
@@ -164,47 +288,60 @@ function isJsonContentType(contentType: string | null): boolean {
 async function requestImpl<T>(request: Request, requestOptions: RequestOptions, parseMode: ResponseParseMode = 'json'): Promise<T> {
     const preProcessed = requestOptions.preProcessRequest ? await requestOptions.preProcessRequest(request) : request;
     const requestExecutor = requestOptions.requestExecutor ?? fetch;
-    const resp = await requestExecutor(preProcessed);
-    const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(preProcessed, resp) : resp;
-    if (postProcessed.ok) {
-        if (parseMode === 'text') {
-            if (!hasResponseBody(postProcessed)) {
-                return '' as T;
+    const timeoutState = createRequestTimeoutSignal(requestOptions.signal, requestOptions.readTimeoutMs);
+    try {
+        throwIfAborted(timeoutState.signal);
+        const effectiveRequest = timeoutState.signal == null ? preProcessed : new Request(preProcessed, {signal: timeoutState.signal});
+        const resp = await requestExecutor(effectiveRequest);
+        const postProcessed = requestOptions.postProcessResponse ? await requestOptions.postProcessResponse(effectiveRequest, resp) : resp;
+        throwIfAborted(timeoutState.signal);
+        if (postProcessed.ok) {
+            if (parseMode === 'text') {
+                if (!hasResponseBody(postProcessed)) {
+                    return '' as T;
+                }
+                return (await readResponseText(postProcessed, timeoutState.signal)) as T;
             }
-            return (await readResponseText(postProcessed)) as T;
-        }
-        if (parseMode === 'bytes') {
-            if (!hasResponseBody(postProcessed)) {
+            if (parseMode === 'bytes') {
+                if (!hasResponseBody(postProcessed)) {
+                    <% if (target.binaryResponse === 'buffer') { %>
+                    return Buffer.alloc(0) as T;
+                    <% } else { %>
+                    return new ArrayBuffer(0) as T;
+                    <% } %>
+                }
                 <% if (target.binaryResponse === 'buffer') { %>
-                return Buffer.alloc(0) as T;
+                return Buffer.from(await readResponseArrayBuffer(postProcessed, timeoutState.signal)) as T;
                 <% } else { %>
-                return new ArrayBuffer(0) as T;
+                return await readResponseArrayBuffer(postProcessed, timeoutState.signal) as T;
                 <% } %>
             }
-            <% if (target.binaryResponse === 'buffer') { %>
-            return Buffer.from(await postProcessed.arrayBuffer()) as T;
-            <% } else { %>
-            return await postProcessed.arrayBuffer() as T;
-            <% } %>
-        }
 
-        if (!hasResponseBody(postProcessed)) {
-            return undefined as T;
-        }
+            if (!hasResponseBody(postProcessed)) {
+                return undefined as T;
+            }
 
-        const payload = (await readResponseText(postProcessed)).replace(/^\uFEFF/, '');
-        if (payload.length === 0) {
-            return undefined as T;
-        }
+            const payload = (await readResponseText(postProcessed, timeoutState.signal)).replace(/^\uFEFF/, '');
+            if (payload.length === 0) {
+                return undefined as T;
+            }
 
-        const contentType = postProcessed.headers.get('content-type');
-        if (contentType != null && !isJsonContentType(contentType)) {
-            throw new Error(`Expected JSON response but received content-type: ${contentType}`);
-        }
+            const contentType = postProcessed.headers.get('content-type');
+            if (contentType != null && !isJsonContentType(contentType)) {
+                throw new Error(`Expected JSON response but received content-type: ${contentType}`);
+            }
 
-        return JSON.parse(payload) as T;
-    } else {
-        throw postProcessed;
+            return JSON.parse(payload) as T;
+        } else {
+            throw postProcessed;
+        }
+    } catch (error) {
+        if (timeoutState.timedOut() && timeoutState.timeoutError != null) {
+            throw timeoutState.timeoutError;
+        }
+        throw error;
+    } finally {
+        timeoutState.clear();
     }
 }
 
