@@ -516,6 +516,8 @@ describe('Renderer', () => {
     expect(output).toContain('readonly payload: Option<FooDto | string>,');
     expect(output).toContain('readonly items: Collection<FooDto | string>,');
     expect(output).toContain('body: Option<FooDto | string>,');
+    expect(output).toContain('if (typeof value === \'object\' && typeof value[Symbol.iterator] === \'function\') {');
+    expect(output).toContain('return Array.from(value as Iterable<any>, item => scatsToJsonValue(item));');
     expect(output).toContain('body.map(value => scatsToJsonValue(value)).orUndefined,');
     expect(output).toContain('\'payload\': this.payload.map(value => scatsToJsonValue(value)).orUndefined,');
   });
@@ -880,6 +882,7 @@ describe('Renderer', () => {
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly files: Blob | Buffer | Collection<Blob | Buffer>,');
+    expect(output).toContain('if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {');
     expect(output).toContain('\'files\': scatsToJsonValue(this.files),');
     expect(output).toContain('json[\'files\'] as unknown as Blob | Buffer | Collection<Blob | Buffer>,');
     expect(output).not.toContain('Collection.from(option(json[\'files\']).getOrElseValue([]))');

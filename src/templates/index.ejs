@@ -67,11 +67,17 @@ function scatsToJsonValue(value: any): any {
     if (value == null) {
         return value;
     }
+    if (typeof value === 'object' && 'toJson' in value) {
+        return (value as { toJson: unknown }).toJson;
+    }
+    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+        return value;
+    }
     if (Array.isArray(value)) {
         return value.map(item => scatsToJsonValue(item));
     }
-    if (typeof value === 'object' && 'toJson' in value) {
-        return (value as { toJson: unknown }).toJson;
+    if (typeof value === 'object' && typeof value[Symbol.iterator] === 'function') {
+        return Array.from(value as Iterable<any>, item => scatsToJsonValue(item));
     }
     return value;
 }
