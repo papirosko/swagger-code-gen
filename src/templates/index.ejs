@@ -11,9 +11,14 @@
  *********************************************************
  *********************************************************
  *********************************************************/
-<% if (targetNode) {%>
+<% if (target.importsNodeFetch) {%>
 import fetch, {Request, Response as FetchResponse, BodyInit} from 'node-fetch';
+<% } %>
+<% if (target.importsFormData) {%>
 import FormData from 'form-data';
+<% } %>
+<% if (target.importsBuffer) {%>
+import {Buffer} from 'node:buffer';
 <% } %>
 <% if (scats) {%>
 import {option, Option, Collection, Try, TryLike, none} from 'scats';
@@ -23,9 +28,9 @@ export interface RequestOptions {
     signal?: AbortSignal,
     apiPrefix?: string;
     headers?: Record<string, string>;
-    requestExecutor?: (request: Request) => Promise<<% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>>;
+    requestExecutor?: (request: Request) => Promise<<%= target.responseTypeName %>>;
     preProcessRequest?: (request: Request) => Request | Promise<Request>;
-    postProcessResponse?: (request: Request, response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>) => <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %> | Promise<<% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>>;
+    postProcessResponse?: (request: Request, response: <%= target.responseTypeName %>) => <%= target.responseTypeName %> | Promise<<%= target.responseTypeName %>>;
 }
 
 
@@ -72,11 +77,15 @@ function objectToForm(o: Record<string, any>): FormData {
     const res = new FormData();
 
     const addProp = (name: string, value: any) => {
+        <%_ if (target.usesGlobalFile) { -%>
         if (value instanceof File) {
             res.append(name, value);
         } else {
             res.append(name, valueToString(value));
         }
+        <%_ } else { -%>
+        res.append(name, value);
+        <%_ } -%>
     };
 
 
@@ -122,7 +131,7 @@ function extractCharset(contentType: string | null): string {
     return normaliseCharset(match?.[2] || 'utf-8');
 }
 
-async function readResponseText(response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>): Promise<string> {
+async function readResponseText(response: <%= target.responseTypeName %>): Promise<string> {
     const payload = await response.arrayBuffer();
     const charset = extractCharset(response.headers.get('content-type'));
     try {
@@ -132,7 +141,7 @@ async function readResponseText(response: <% if (targetNode) { %>FetchResponse<%
     }
 }
 
-function hasResponseBody(response: <% if (targetNode) { %>FetchResponse<% } else { %>Response<% } %>): boolean {
+function hasResponseBody(response: <%= target.responseTypeName %>): boolean {
     if (response.status === 204 || response.status === 205 || response.status === 304) {
         return false;
     }
@@ -166,13 +175,13 @@ async function requestImpl<T>(request: Request, requestOptions: RequestOptions, 
         }
         if (parseMode === 'bytes') {
             if (!hasResponseBody(postProcessed)) {
-                <% if (targetNode) { %>
+                <% if (target.binaryResponse === 'buffer') { %>
                 return Buffer.alloc(0) as T;
                 <% } else { %>
                 return new ArrayBuffer(0) as T;
                 <% } %>
             }
-            <% if (targetNode) { %>
+            <% if (target.binaryResponse === 'buffer') { %>
             return Buffer.from(await postProcessed.arrayBuffer()) as T;
             <% } else { %>
             return await postProcessed.arrayBuffer() as T;
@@ -210,12 +219,12 @@ methods.foreach(method => {
     if (method.body.nonEmpty) {
         method.body.foreach(body => {
 %>
-<%- include('method.ejs', {method: method, body: scatsLib.some(body)}); %>
+<%- include('method.ejs', {method: method, body: scatsLib.some(body), target: target}); %>
 <%
         });
     } else {
 %>
-<%- include('method.ejs', {method: method, body: scatsLib.none }); %>
+<%- include('method.ejs', {method: method, body: scatsLib.none, target: target }); %>
 <%
     }
 });
@@ -228,6 +237,6 @@ methods.foreach(method => {
 <%- include('scats-schema.ejs', {schema: schema}); %>
 <% }); %>
 
-<%- include('scats-api-client.ejs'); %>
+<%- include('scats-api-client.ejs', {target: target}); %>
 
 <% } %>

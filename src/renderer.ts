@@ -5,6 +5,7 @@ import {Property} from './property.js';
 import * as fs from 'fs';
 import {Method} from './method.js';
 import path, {dirname} from 'path';
+import {TargetConfig} from './target-profile.js';
 
 import {fileURLToPath} from 'url';
 
@@ -15,13 +16,11 @@ const currentDirname = typeof __dirname !== 'undefined' ? __dirname : dirname(cu
 
 export class Renderer {
 
-
     async renderToFile(schemas: Collection<Schema | Property>,
                        methods: Collection<Method>,
                        enableScats: boolean,
-                       targetNode: boolean,
+                       target: TargetConfig,
                        file: string) {
-
         const view = await ejs.renderFile(
             path.resolve(currentDirname, 'templates/index.ejs'),
             {
@@ -29,7 +28,7 @@ export class Renderer {
                 schemas: schemas,
                 methods: methods,
                 scats: enableScats,
-                targetNode: targetNode
+                target: target
             });
 
         fs.writeFileSync(file, view);

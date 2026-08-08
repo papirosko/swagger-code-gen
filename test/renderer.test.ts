@@ -10,6 +10,7 @@ import {
   resolveSchemasTypes
 } from '../src/components-parse.js';
 import {GenerationOptions} from '../src/schemas.js';
+import {TargetProfileResolver} from '../src/target-profile.js';
 
 const options: GenerationOptions = {
   referencedObjectsNullableByDefault: false,
@@ -18,6 +19,10 @@ const options: GenerationOptions = {
   onlyUsedSchemas: false,
   includeSchemasByMask: HashSet.from<string>([])
 };
+const browserTarget = TargetProfileResolver.browser();
+const nodeFetch3Target = TargetProfileResolver.resolve(
+  TargetProfileResolver.optionsFromStrings('node-fetch3', undefined, undefined)
+);
 
 describe('Renderer', () => {
   it('renders schemas and methods to file using templates', async () => {
@@ -69,7 +74,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export interface Pet');
@@ -166,7 +171,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export interface CreateWidgetRequest extends BaseEntity');
@@ -207,7 +212,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('Promise<TryLike<Option<any>>>');
@@ -238,7 +243,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly $function: string,');
@@ -270,7 +275,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly $function: string,');
@@ -316,7 +321,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export async function getKeywords(');
@@ -359,7 +364,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export async function deleteJob(');
@@ -417,7 +422,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('ids.forEach(p => {');
@@ -505,7 +510,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly payload: Option<FooDto | string>,');
@@ -557,7 +562,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('Promise<TryLike<Collection<PetDto>>>');
@@ -610,7 +615,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('Promise<TryLike<Option<FooDto | string>>>');
@@ -669,7 +674,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly items: Collection<{ note: string } | string>,');
@@ -718,7 +723,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('): Promise<ReadonlyArray<{ id?: number; name?: string }>>');
@@ -751,7 +756,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly $copy: Option<string>,');
@@ -789,7 +794,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export type Metadata = object | null;');
@@ -829,7 +834,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly items: Collection<string>,');
@@ -871,7 +876,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, true, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, nodeFetch3Target, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('readonly files: Blob | Buffer | Collection<Blob | Buffer>,');
@@ -925,7 +930,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('body?: Blob | Buffer,');
@@ -993,7 +998,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('export interface $Blob');
@@ -1044,7 +1049,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, true, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('constructor(');
@@ -1094,7 +1099,7 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, true, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, nodeFetch3Target, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('import fetch, {Request, Response as FetchResponse, BodyInit} from \'node-fetch\';');
@@ -1144,9 +1149,167 @@ describe('Renderer', () => {
     const targetFile = path.join(tmpDir, 'client.ts');
 
     const renderer = new Renderer();
-    await renderer.renderToFile(schemasMap.values, methods, false, false, targetFile);
+    await renderer.renderToFile(schemasMap.values, methods, false, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('...(openaiBeta != null ? {\'openai-beta\': openaiBeta.join(\',\')} : {}),');
+  });
+
+  it('renders browser target with global multipart and ArrayBuffer binary responses', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/upload': {
+          post: {
+            operationId: 'uploadFile',
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      file: {type: 'string', format: 'binary'},
+                      label: {type: 'string'}
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/octet-stream': {
+                    schema: {type: 'string', format: 'binary'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const target = TargetProfileResolver.resolve(TargetProfileResolver.optionsFromStrings(undefined, undefined, undefined));
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, target, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).not.toContain('from \'node-fetch\'');
+    expect(output).not.toContain('from \'form-data\'');
+    expect(output).not.toContain('node:buffer');
+    expect(output).toContain('if (value instanceof File)');
+    expect(output).toContain('bodySerialised = body != null ? objectToForm(body) : null;');
+    expect(output).toContain('): Promise<ArrayBuffer> {');
+    expect(output).toContain('return new ArrayBuffer(0) as T;');
+  });
+
+  it('renders node-fetch3 target with form-data multipart and Buffer binary responses', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/upload': {
+          post: {
+            operationId: 'uploadFile',
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      file: {type: 'string', format: 'binary'},
+                      label: {type: 'string'}
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/octet-stream': {
+                    schema: {type: 'string', format: 'binary'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const target = TargetProfileResolver.resolve(TargetProfileResolver.optionsFromStrings('node-fetch3', undefined, undefined));
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, target, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('import fetch, {Request, Response as FetchResponse, BodyInit} from \'node-fetch\';');
+    expect(output).toContain('import FormData from \'form-data\';');
+    expect(output).toContain('import {Buffer} from \'node:buffer\';');
+    expect(output).not.toContain('if (value instanceof File)');
+    expect(output).toContain('res.append(name, value);');
+    expect(output).toContain('bodySerialised = body != null ? objectToForm(body) as unknown as BodyInit : null;');
+    expect(output).toContain('): Promise<Buffer> {');
+    expect(output).toContain('return Buffer.alloc(0) as T;');
+    expect(output).toContain('return Buffer.from(await postProcessed.arrayBuffer()) as T;');
+  });
+
+  it('renders node18 overrides for form-data multipart and Buffer binary responses', async () => {
+    const spec = {
+      components: {
+        schemas: {}
+      },
+      paths: {
+        '/download': {
+          get: {
+            operationId: 'downloadFile',
+            responses: {
+              200: {
+                content: {
+                  'application/octet-stream': {
+                    schema: {type: 'string', format: 'binary'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const target = TargetProfileResolver.resolve(TargetProfileResolver.optionsFromStrings('node18', 'form-data', 'buffer'));
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, false, target, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).not.toContain('from \'node-fetch\'');
+    expect(output).toContain('import FormData from \'form-data\';');
+    expect(output).toContain('import {Buffer} from \'node:buffer\';');
+    expect(output).toContain('requestExecutor?: (request: Request) => Promise<Response>;');
+    expect(output).toContain('): Promise<Buffer> {');
   });
 });

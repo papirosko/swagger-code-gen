@@ -3,6 +3,7 @@
 import {main} from './index.js';
 import {Command} from "commander";
 import {HashSet, option} from "scats";
+import {TargetProfileResolver} from './target-profile.js';
 
 
 const program = new Command();
@@ -17,7 +18,9 @@ program
     .option('--onlyUsedSchemas', 'Generate only schemas reachable from filtered methods', false)
     .option('--includeSchemasByMask <masks...>', 'Space-separated list of schema name masks to force-include with dependencies (supports * and ? wildcards)')
     .option('--enableScats', 'Generate scats', false)
-    .option('--targetNode', 'Add imports for node-fetch into generated code', false)
+    .option('--target <profile>', 'Generated client runtime profile: browser, node18, node-fetch3')
+    .option('--multipart-impl <implementation>', 'Implementation for multipart/form-data request bodies: global, form-data')
+    .option('--binary-response <type>', 'Return type for binary response bodies: arraybuffer, buffer')
     .option('--user <username>', 'If swagger requires authorisation')
     .option('--password <password>', 'If swagger requires authorisation')
     .option('--ignoreSSLErrors', 'If swagger requires authorisation, but ssl cert is wrong')
@@ -30,7 +33,9 @@ const password = program.opts().password;
 const ignoreSSLErrors = program.opts().ignoreSSLErrors;
 const referencedObjectsNullableByDefault = program.opts().referencedObjectsNullableByDefault;
 const enableScats = program.opts().enableScats;
-const targetNode = program.opts().targetNode;
+const target = program.opts().target;
+const multipartImplementation = program.opts().multipartImpl;
+const binaryResponse = program.opts().binaryResponse;
 const outputFile = program.args[0];
 const includeTags = HashSet.from(program.opts().includeTags || []);
 const excludeTags = HashSet.from(program.opts().excludeTags || []);
@@ -38,7 +43,12 @@ const onlyUsedSchemas = program.opts().onlyUsedSchemas;
 const includeSchemasByMask = HashSet.from(program.opts().includeSchemasByMask || []);
 
 try {
-    await main(url, enableScats, targetNode, outputFile,
+    const targetConfig = TargetProfileResolver.resolve(TargetProfileResolver.optionsFromStrings(
+        target,
+        multipartImplementation,
+        binaryResponse
+    ));
+    await main(url, enableScats, targetConfig, outputFile,
         ignoreSSLErrors,
         option(user).flatMap(u => option(password).map(p => ({
             user: u,

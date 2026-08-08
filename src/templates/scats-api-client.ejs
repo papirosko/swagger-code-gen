@@ -20,12 +20,12 @@ export class ApiClient {
         if (method.body.nonEmpty) {
             method.body.foreach(body => {
     %>
-    <%- include('scats-method.ejs', {method: method, body: scatsLib.some(body)}); %>
+    <%- include('scats-method.ejs', {method: method, body: scatsLib.some(body), target: target}); %>
     <%
             });
         } else {
     %>
-    <%- include('scats-method.ejs', {method: method, body: scatsLib.none }); %>
+    <%- include('scats-method.ejs', {method: method, body: scatsLib.none, target: target }); %>
     <%
         }
     });

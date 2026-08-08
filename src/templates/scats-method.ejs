@@ -26,7 +26,7 @@ const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => ` * ${s
     <%_ }); -%>
     <%_ } -%>
      * @param {RequestOptions} requestOptions Additional request params
-     * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType) %>} <%= method.response.description %>
+     * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? target.binaryTypeName : method.response.responseType) %>} <%= method.response.description %>
      */
     async <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
         <%_ if (!method.wrapParamsInObject) { -%>
@@ -44,7 +44,7 @@ const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => ` * ${s
         body: <%- body.body.scatsWrapperType %>,
         <%_ }); -%>
         requestOptions: RequestOptions = {}
-    ): Promise<TryLike<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.asProperty.scatsWrapperType %><% } %>>> {
+    ): Promise<TryLike<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><%= target.binaryTypeName %><% } else { %><%- method.response.asProperty.scatsWrapperType %><% } %>>> {
         const mergedRequestOptions = this.mergeRequestOptions(requestOptions);
         return (await Try.promise(() =>
                 <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(

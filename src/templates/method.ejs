@@ -26,7 +26,7 @@ const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => ` * ${s
 <%_ }); -%>
 <%_ } -%>
  * @param {RequestOptions} requestOptions Additional request params
- * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? (targetNode ? 'Buffer' : 'ArrayBuffer') : method.response.responseType) %>} <%= method.response.description %>
+ * @return {<%= method.response.noContent ? 'void' : (method.response.parseMode === 'bytes' ? target.binaryTypeName : method.response.responseType) %>} <%= method.response.description %>
  */
 export async function <%= method.endpointName %><%= body.map(b => b.suffix).getOrElseValue('') %>(
     <%_ if (!method.wrapParamsInObject) { -%>
@@ -44,7 +44,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     body<%= body.get.body.required ? '' : '?'%>: <%- body.get.body.jsType %>,
     <%_ } -%>
     requestOptions: RequestOptions = defReqOpts()
-): Promise<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>> {
+): Promise<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><%= target.binaryTypeName %><% } else { %><%- method.response.responseType %><% } %>> {
     let query = '';
     <%_ if (method.parameters.filter(x => x.in === 'query').nonEmpty) { -%>
     const queryParams: string[] = [];
@@ -103,7 +103,7 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/x-www-form-urlencoded') { -%>
     bodySerialised = body != null ? objectToFormWwwEncoded(body) : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'multipart/form-data') { -%>
-    bodySerialised = body != null ? objectToForm(body) : null;
+    bodySerialised = body != null ? objectToForm(body)<%- target.formBodyCast %> : null;
     <%_ } else if (body.nonEmpty && body.get.mimeType === 'application/octet-stream') { -%>
     bodySerialised = body == null ? null : body as unknown as BodyInit;
     <%_ }  -%>
@@ -140,5 +140,5 @@ export async function <%= method.endpointName %><%= body.map(b => b.suffix).getO
         signal: requestOptions.signal,
         headers: headers
     });
-    return requestImpl<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><% if (targetNode) { %>Buffer<% } else { %>ArrayBuffer<% } %><% } else { %><%- method.response.responseType %><% } %>>(request, requestOptions, '<%= method.response.parseMode %>');
+    return requestImpl<<% if (method.response.noContent) { %>void<% } else if (method.response.parseMode === 'bytes') { %><%= target.binaryTypeName %><% } else { %><%- method.response.responseType %><% } %>>(request, requestOptions, '<%= method.response.parseMode %>');
 }
