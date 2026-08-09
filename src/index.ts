@@ -43,7 +43,17 @@ export async function main(url: string,
         agent: httpsAgent
     });
 
-    const json: any = await response.json();
+    if (!response.ok) {
+        throw new Error(`Failed to download swagger from ${url}: HTTP ${response.status} ${response.statusText}`);
+    }
+
+    let json: any;
+    try {
+        json = await response.json();
+    } catch (error) {
+        const message = error instanceof Error && error.message.trim().length > 0 ? error.message : String(error);
+        throw new Error(`Failed to parse swagger JSON from ${url}: ${message}`);
+    }
     const schemasTypes = resolveSchemasTypes(json);
     const allSchemas = resolveSchemas(json, schemasTypes, options);
     const paths: Collection<Method> = resolvePaths(json, schemasTypes, options, allSchemas);

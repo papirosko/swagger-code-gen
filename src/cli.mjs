@@ -42,6 +42,28 @@ const excludeTags = HashSet.from(program.opts().excludeTags || []);
 const onlyUsedSchemas = program.opts().onlyUsedSchemas;
 const includeSchemasByMask = HashSet.from(program.opts().includeSchemasByMask || []);
 
+function errorMessage(error) {
+    if (error instanceof Error && error.message.trim().length > 0) {
+        return error.message;
+    }
+
+    const details = [];
+    if (error instanceof Error) {
+        details.push(error.name);
+    }
+    if (error && typeof error === 'object') {
+        const typedError = error;
+        if (typedError.type) details.push(`type=${typedError.type}`);
+        if (typedError.code) details.push(`code=${typedError.code}`);
+        if (typedError.cause instanceof Error && typedError.cause.message.trim().length > 0) {
+            details.push(`cause=${typedError.cause.message}`);
+        } else if (typedError.cause) {
+            details.push(`cause=${String(typedError.cause)}`);
+        }
+    }
+    return details.length > 0 ? details.join(', ') : String(error);
+}
+
 try {
     const targetConfig = TargetProfileResolver.resolve(TargetProfileResolver.optionsFromStrings(
         target,
@@ -62,7 +84,6 @@ try {
             includeSchemasByMask: includeSchemasByMask
         });
 } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to generate client: ${message}`);
+    console.error(`Failed to generate client: ${errorMessage(error)}`);
     process.exitCode = 1;
 }

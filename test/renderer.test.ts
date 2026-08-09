@@ -5,6 +5,7 @@ import path from 'path';
 import {HashSet} from 'scats';
 import {Renderer} from '../src/renderer.js';
 import {
+  filterUsedSchemas,
   resolvePaths,
   resolveSchemas,
   resolveSchemasTypes
@@ -684,6 +685,95 @@ describe('Renderer', () => {
     expect(output).not.toContain('Collection<{ note: string } | string>.fromJson');
   });
 
+  it('keeps schemas referenced from nested union array types when only used schemas are generated', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          ChatMessage: {
+            type: 'object',
+            properties: {
+              content: {
+                oneOf: [
+                  {type: 'string'},
+                  {
+                    type: 'array',
+                    items: {$ref: '#/components/schemas/ChatContentItems'}
+                  }
+                ]
+              }
+            }
+          },
+          ChatContentItems: {
+            oneOf: [
+              {$ref: '#/components/schemas/ChatContentText'}
+            ]
+          },
+          ChatContentText: {
+            type: 'object',
+            required: ['type', 'text'],
+            properties: {
+              type: {type: 'string'},
+              text: {type: 'string'}
+            }
+          },
+          UnusedSchema: {
+            type: 'object',
+            properties: {
+              id: {type: 'string'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/chat': {
+          post: {
+            tags: ['Chat'],
+            operationId: 'createChatCompletion',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {$ref: '#/components/schemas/ChatMessage'}
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/ChatMessage'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const onlyUsedOptions = {
+      ...options,
+      includeTags: HashSet.from(['Chat']),
+      onlyUsedSchemas: true
+    };
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, onlyUsedOptions);
+    const methods = resolvePaths(spec, types, onlyUsedOptions, schemasMap);
+    const usedSchemas = filterUsedSchemas(methods, schemasMap, onlyUsedOptions.includeSchemasByMask);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(usedSchemas.values, methods, true, browserTarget, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly content: Option<string | Collection<ChatContentItems>>');
+    expect(output).toContain('export type ChatContentItems = ChatContentText;');
+    expect(output).toContain('export class ChatContentTextDto');
+    expect(output).not.toContain('UnusedSchema');
+  });
+
   it('renders anonymous object array responses as inline object arrays', async () => {
     const spec = {
       components: {
@@ -1107,7 +1197,7 @@ describe('Renderer', () => {
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).toContain('import fetch, {Request, Response as FetchResponse, BodyInit} from \'node-fetch\';');
     expect(output).toContain('requestExecutor?: (request: Request) => Promise<FetchResponse>;');
-    expect(output).toContain('async function readResponseText(response: FetchResponse): Promise<string>');
+    expect(output).toContain('async function readResponseText(response: FetchResponse, signal?: AbortSignal): Promise<string>');
   });
 
   it('serializes array header params to comma separated strings', async () => {
@@ -1271,7 +1361,7 @@ describe('Renderer', () => {
     expect(output).toContain('bodySerialised = body != null ? objectToForm(body) as unknown as BodyInit : null;');
     expect(output).toContain('): Promise<Buffer> {');
     expect(output).toContain('return Buffer.alloc(0) as T;');
-    expect(output).toContain('return Buffer.from(await postProcessed.arrayBuffer()) as T;');
+    expect(output).toContain('return Buffer.from(await readResponseArrayBuffer(postProcessed, timeoutState.signal)) as T;');
   });
 
   it('renders node18 overrides for form-data multipart and Buffer binary responses', async () => {

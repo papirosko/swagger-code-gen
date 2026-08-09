@@ -197,11 +197,13 @@ export function resolvePaths(json: any, schemasTypes: HashMap<string, SchemaType
 }
 
 function collectSchemaRefsFromType(type: string, schemas: HashMap<string, Schema>, add: (name: string) => void) {
-    Collection.from(type.split(/[|&]/))
-        .map(t => t.trim())
-        .filter(t => t.length > 0)
-        .filter(t => schemas.containsKey(t))
-        .foreach(t => add(t));
+    const identifiers = type.match(/\$?[A-Za-z_][A-Za-z0-9_$]*/g) || [];
+    Collection.from(identifiers)
+        .flatMap(identifier => identifier.endsWith('Dto')
+            ? Collection.of(identifier, identifier.substring(0, identifier.length - 3))
+            : Collection.of(identifier))
+        .filter(identifier => schemas.containsKey(identifier))
+        .foreach(identifier => add(identifier));
 }
 
 function wildcardMaskToRegExp(mask: string): RegExp {
