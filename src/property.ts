@@ -183,21 +183,25 @@ export class Property implements Schema {
                                        schemaTypes: HashMap<string, SchemaType>): Collection<string> {
         const refs = new Set<string>();
 
-        const visit = (value: OpenApiProperty | OpenApiSchema | undefined) => {
+        const visit = (
+            value: OpenApiProperty | OpenApiSchema | undefined,
+            insideComplexComposition = false
+        ) => {
             if (value == null) {
                 return;
             }
             const ref = option(value.$ref)
+                .filter(() => !insideComplexComposition)
                 .map(raw => raw.substring(SCHEMA_PREFIX.length))
                 .filter(name => schemaTypes.get(name).contains('object'));
             if (ref.nonEmpty) {
                 refs.add(ref.get);
             }
 
-            option((value as OpenApiProperty).items).foreach(item => visit(item));
-            option(value.oneOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
-            option(value.allOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
-            option(value.anyOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty)));
+            option((value as OpenApiProperty).items).foreach(item => visit(item, insideComplexComposition));
+            option(value.oneOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty, true)));
+            option(value.anyOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty, true)));
+            option(value.allOf).foreach(items => items.forEach(item => visit(item as OpenApiProperty, insideComplexComposition || items.length > 1)));
         };
 
         visit(definition);

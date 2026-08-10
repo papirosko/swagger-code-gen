@@ -76,7 +76,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const payload = getProperty(spec, 'RefContainer', 'payload');
-    expect(payload.scatsWrapperType).toBe('Option<FooDto>');
+    expect(payload.scatsWrapperType).toBe('Option<Foo>');
   });
 
   it('wraps object unions branch-by-branch', () => {
@@ -102,7 +102,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const payload = getProperty(spec, 'RefUnionContainer', 'payload');
-    expect(payload.scatsWrapperType).toBe('FooDto | BarDto');
+    expect(payload.scatsWrapperType).toBe('Foo | Bar');
   });
 
   it('wraps mixed object and primitive unions branch-by-branch', () => {
@@ -128,7 +128,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const payload = getProperty(spec, 'MixedUnionContainer', 'payload');
-    expect(payload.scatsWrapperType).toBe('FooDto | string');
+    expect(payload.scatsWrapperType).toBe('Foo | string');
   });
 
   it('wraps mixed nullable unions as Option<...>', () => {
@@ -154,7 +154,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const payload = getProperty(spec, 'NullableMixedUnionContainer', 'payload');
-    expect(payload.scatsWrapperType).toBe('Option<FooDto | string>');
+    expect(payload.scatsWrapperType).toBe('Option<Foo | string>');
   });
 
   it('keeps nullable arrays as Collection rather than Option<Collection>', () => {
@@ -207,7 +207,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const items = getProperty(spec, 'ArrayUnionContainer', 'items');
-    expect(items.scatsWrapperType).toBe('Collection<FooDto | BarDto>');
+    expect(items.scatsWrapperType).toBe('Collection<Foo | Bar>');
   });
 
   it('normalizes unions of arrays into a collection of wrapped items', () => {
@@ -242,7 +242,7 @@ describe('components parsing - scats union wrappers', () => {
     };
 
     const items = getProperty(spec, 'ArrayOrArrayContainer', 'items');
-    expect(items.scatsWrapperType).toBe('Collection<FooDto | BarDto>');
+    expect(items.scatsWrapperType).toBe('Collection<Foo | Bar>');
   });
 
   it('wraps nullable inline object literals as Option<{ ... }>', () => {

@@ -1,8 +1,10 @@
 import {describe, expect, it} from '@jest/globals';
+import {spawnSync} from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import {HashSet} from 'scats';
+import {pathToFileURL} from 'url';
 import {Renderer} from '../src/renderer.js';
 import {
   filterUsedSchemas,
@@ -514,9 +516,9 @@ describe('Renderer', () => {
     await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
-    expect(output).toContain('readonly payload: Option<FooDto | string>,');
-    expect(output).toContain('readonly items: Collection<FooDto | string>,');
-    expect(output).toContain('body: Option<FooDto | string>,');
+    expect(output).toContain('readonly payload: Option<Foo | string>,');
+    expect(output).toContain('readonly items: Collection<Foo | string>,');
+    expect(output).toContain('body: Option<Foo | string>,');
     expect(output).toContain('if (typeof value === \'object\' && typeof value[Symbol.iterator] === \'function\') {');
     expect(output).toContain('return Array.from(value as Iterable<any>, item => scatsToJsonValue(item));');
     expect(output).toContain('body.map(value => scatsToJsonValue(value)).orUndefined,');
@@ -621,8 +623,8 @@ describe('Renderer', () => {
     await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
 
     const output = fs.readFileSync(targetFile, 'utf8');
-    expect(output).toContain('Promise<TryLike<Option<FooDto | string>>>');
-    expect(output).toContain('.map(res => option(res) as unknown as Option<FooDto | string>)');
+    expect(output).toContain('Promise<TryLike<Option<Foo | string>>>');
+    expect(output).toContain('.map(res => option(res) as unknown as Option<Foo | string>)');
   });
 
   it('renders inline-object response arrays without nonexistent fromJson calls', async () => {
@@ -1152,6 +1154,270 @@ describe('Renderer', () => {
     expect(output).toContain('\'id\': scatsToJsonValue(this.id),');
     expect(output).toContain('\'role\': scatsToJsonValue(this.role),');
     expect(output).toContain('\'value\': this.value.map(value => scatsToJsonValue(value)).orUndefined,');
+  });
+
+
+
+  it('parses simple object responses into scats DTO instances at runtime', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          SimpleUser: {
+            type: 'object',
+            required: ['login'],
+            properties: {
+              id: {type: 'integer'},
+              login: {type: 'string'},
+              email: {
+                type: 'string',
+                nullable: true
+              }
+            }
+          }
+        }
+      },
+      paths: {
+        '/simple-user': {
+          get: {
+            operationId: 'getSimpleUser',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/SimpleUser'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpRoot = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpRoot, {recursive: true});
+    const tmpDir = fs.mkdtempSync(path.join(tmpRoot, 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const runtimeScript = path.join(tmpDir, 'runtime-check.mjs');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('export class SimpleUserDto');
+    expect(output).toContain('.map(res => SimpleUserDto.fromJson(res))');
+
+    fs.writeFileSync(
+      runtimeScript,
+      `import { SimpleUserDto } from ${JSON.stringify(pathToFileURL(targetFile).href)};
+
+const payload = {
+  id: 202,
+  login: 'simple-user',
+  email: null
+};
+
+const parsed = SimpleUserDto.fromJson(payload);
+if (typeof parsed.id?.getOrElseValue !== 'function') {
+  throw new Error('Expected id to be a scats Option');
+}
+if (parsed.id.getOrElseValue(-1) !== 202) {
+  throw new Error('Expected parsed id value');
+}
+if (parsed.login !== 'simple-user') {
+  throw new Error('Expected parsed login value');
+}
+if (parsed.email.isEmpty !== true) {
+  throw new Error('Expected parsed email to be empty Option');
+}
+console.log('runtime-ok');
+`,
+      'utf8'
+    );
+
+    const result = spawnSync(process.execPath, ['--loader', 'ts-node/esm/transpile-only', runtimeScript], {
+      cwd: tmpDir,
+      encoding: 'utf8'
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`Runtime parser check failed
+STDOUT:
+${result.stdout}
+STDERR:
+${result.stderr}`);
+    }
+
+    expect(result.stdout).toContain('runtime-ok');
+  });
+
+  it('keeps nested anyOf object response branches as raw JSON at runtime', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          'Users.User': {
+            type: 'object',
+            required: ['login'],
+            properties: {
+              id: {type: 'integer'},
+              login: {type: 'string'},
+              type: {
+                type: 'string',
+                enum: ['MASTER', 'USER']
+              },
+              createdAt: {type: 'string'},
+              description: {type: 'string'},
+              firstName: {type: 'string'},
+              lastName: {type: 'string'},
+              middleName: {type: 'string'},
+              balance: {type: 'number'}
+            }
+          },
+          'Users.User.Child': {
+            allOf: [
+              {$ref: '#/components/schemas/Users.User'},
+              {
+                type: 'object',
+                required: ['type'],
+                properties: {
+                  type: {
+                    type: 'string',
+                    enum: ['USER']
+                  },
+                  email: {
+                    type: 'string',
+                    nullable: true
+                  },
+                  password: {
+                    type: 'string',
+                    nullable: true
+                  }
+                }
+              }
+            ]
+          },
+          'Users.User.Master': {
+            allOf: [
+              {$ref: '#/components/schemas/Users.User'},
+              {
+                type: 'object',
+                required: ['type', 'email'],
+                properties: {
+                  type: {
+                    type: 'string',
+                    enum: ['MASTER']
+                  },
+                  email: {
+                    type: 'string'
+                  }
+                }
+              }
+            ]
+          },
+          'UserGetResponse.get': {
+            type: 'object',
+            required: ['response'],
+            properties: {
+              response: {
+                anyOf: [
+                  {$ref: '#/components/schemas/Users.User.Master'},
+                  {$ref: '#/components/schemas/Users.User.Child'}
+                ]
+              }
+            }
+          }
+        }
+      },
+      paths: {
+        '/user': {
+          get: {
+            operationId: 'user.get',
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/UserGetResponse.get'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpRoot = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpRoot, {recursive: true});
+    const tmpDir = fs.mkdtempSync(path.join(tmpRoot, 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const runtimeScript = path.join(tmpDir, 'runtime-check.mjs');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly response: UsersUserMaster | UsersUserChild,');
+    expect(output).not.toContain('readonly response: UsersUserMasterDto | UsersUserChildDto,');
+
+    fs.writeFileSync(
+      runtimeScript,
+      `import { UserGetResponseGetDto } from ${JSON.stringify(pathToFileURL(targetFile).href)};
+
+const payload = {
+  response: {
+    id: 10101,
+    login: 'synthetic-user',
+    type: 'USER',
+    createdAt: '2026-08-10T12:00:00Z',
+    description: 'Synthetic user for parser regression test',
+    firstName: 'Test',
+    lastName: 'User',
+    middleName: '',
+    balance: 12.5,
+    email: null,
+    password: null
+  }
+};
+
+const parsed = UserGetResponseGetDto.fromJson(payload);
+if (parsed.response.type !== 'USER') {
+  throw new Error('Expected USER branch');
+}
+if (typeof parsed.response.id?.getOrElseValue === 'function') {
+  throw new Error('Expected response.id to stay raw JSON');
+}
+if (parsed.response.id !== 10101) {
+  throw new Error('Expected parsed response.id value');
+}
+if (parsed.response.firstName !== 'Test') {
+  throw new Error('Expected parsed response.firstName value');
+}
+if (parsed.response.email !== null) {
+  throw new Error('Expected parsed response.email to stay null');
+}
+console.log('runtime-ok');
+`,
+      'utf8'
+    );
+
+    const result = spawnSync(process.execPath, ['--loader', 'ts-node/esm/transpile-only', runtimeScript], {
+      cwd: tmpDir,
+      encoding: 'utf8'
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`Runtime parser check failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
+    }
+
+    expect(result.stdout).toContain('runtime-ok');
   });
 
   it('aliases fetch Response import when schema names include Response', async () => {
