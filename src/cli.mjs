@@ -18,6 +18,7 @@ program
     .option('--onlyUsedSchemas', 'Generate only schemas reachable from filtered methods', false)
     .option('--includeSchemasByMask <masks...>', 'Space-separated list of schema name masks to force-include with dependencies (supports * and ? wildcards)')
     .option('--enableScats', 'Generate scats', false)
+    .option('--preserveUnknownFields', 'Preserve unknown JSON fields in generated scats DTOs', false)
     .option('--target <profile>', 'Generated client runtime profile: browser, node18, node-fetch3')
     .option('--multipart-impl <implementation>', 'Implementation for multipart/form-data request bodies: global, form-data')
     .option('--binary-response <type>', 'Return type for binary response bodies: arraybuffer, buffer')
@@ -33,6 +34,7 @@ const password = program.opts().password;
 const ignoreSSLErrors = program.opts().ignoreSSLErrors;
 const referencedObjectsNullableByDefault = program.opts().referencedObjectsNullableByDefault;
 const enableScats = program.opts().enableScats;
+const preserveUnknownFields = program.opts().preserveUnknownFields;
 const target = program.opts().target;
 const multipartImplementation = program.opts().multipartImpl;
 const binaryResponse = program.opts().binaryResponse;
@@ -81,7 +83,8 @@ try {
             includeTags: includeTags,
             excludeTags: excludeTags,
             onlyUsedSchemas: onlyUsedSchemas,
-            includeSchemasByMask: includeSchemasByMask
+            includeSchemasByMask: includeSchemasByMask,
+            preserveUnknownFields: preserveUnknownFields
         });
 } catch (error) {
     console.error(`Failed to generate client: ${errorMessage(error)}`);

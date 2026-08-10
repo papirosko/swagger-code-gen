@@ -6,6 +6,7 @@ export const emptyOptions: GenerationOptions = {
   includeTags: HashSet.from<string>([]),
   excludeTags: HashSet.from<string>([]),
   onlyUsedSchemas: false,
-  includeSchemasByMask: HashSet.from<string>([])
+  includeSchemasByMask: HashSet.from<string>([]),
+  preserveUnknownFields: false
 };
 

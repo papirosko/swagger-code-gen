@@ -79,7 +79,9 @@ export class NameUtils {
     private static readonly RESERVED_GENERATED_MEMBER_NAMES = new Set([
         'copy',
         'toJson',
-        'fromJson'
+        'fromJson',
+        '$unknown',
+        '$unknownFields'
     ]);
 
     private static readonly RESERVED_GENERATED_TYPE_NAMES = new Set([

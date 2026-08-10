@@ -20,7 +20,8 @@ const options: GenerationOptions = {
   includeTags: HashSet.from<string>([]),
   excludeTags: HashSet.from<string>([]),
   onlyUsedSchemas: false,
-  includeSchemasByMask: HashSet.from<string>([])
+  includeSchemasByMask: HashSet.from<string>([]),
+  preserveUnknownFields: false
 };
 const browserTarget = TargetProfileResolver.browser();
 const nodeFetch3Target = TargetProfileResolver.resolve(
@@ -1233,6 +1234,219 @@ if (parsed.login !== 'simple-user') {
 }
 if (parsed.email.isEmpty !== true) {
   throw new Error('Expected parsed email to be empty Option');
+}
+console.log('runtime-ok');
+`,
+      'utf8'
+    );
+
+    const result = spawnSync(process.execPath, ['--loader', 'ts-node/esm/transpile-only', runtimeScript], {
+      cwd: tmpDir,
+      encoding: 'utf8'
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`Runtime parser check failed
+STDOUT:
+${result.stdout}
+STDERR:
+${result.stderr}`);
+    }
+
+    expect(result.stdout).toContain('runtime-ok');
+  });
+
+
+  it('does not emit unknown field helpers when preserve flag is disabled', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          ErrorEnvelope: {
+            type: 'object',
+            properties: {
+              error: {type: 'boolean'},
+              data: {type: 'object'}
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).not.toContain('readonly $unknownFields');
+    expect(output).not.toContain('$unknown<T = unknown>');
+  });
+
+  it('preserves unknown fields in scats dto round-trips when flag is enabled', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          ErrorEnvelope: {
+            type: 'object',
+            properties: {
+              error: {type: 'boolean'},
+              data: {type: 'object'}
+            }
+          }
+        }
+      },
+      paths: {}
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpRoot = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpRoot, {recursive: true});
+    const tmpDir = fs.mkdtempSync(path.join(tmpRoot, 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const runtimeScript = path.join(tmpDir, 'runtime-check.mjs');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile, true);
+
+    const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('readonly $unknownFields: Readonly<Record<string, unknown>> = {},');
+    expect(output).toContain('$unknown<T = unknown>(fieldName: string): Option<T>');
+    expect(output).toContain('...this.$unknownFields,');
+
+    fs.writeFileSync(
+      runtimeScript,
+      `import { ErrorEnvelopeDto } from ${JSON.stringify(pathToFileURL(targetFile).href)};
+
+const payload = {
+  error: true,
+  data: null,
+  message: 'Only latin characters are allowed',
+  field: 'card_surname'
+};
+
+const parsed = ErrorEnvelopeDto.fromJson(payload);
+if (parsed.error.getOrElseValue(false) !== true) {
+  throw new Error('Expected known field to be parsed');
+}
+if (parsed.$unknown('message').getOrElse(() => '') !== 'Only latin characters are allowed') {
+  throw new Error('Expected unknown message field to be preserved');
+}
+if (parsed.$unknown('field').getOrElse(() => '') !== 'card_surname') {
+  throw new Error('Expected unknown field name to be preserved');
+}
+const serialized = parsed.toJson;
+if (serialized['message'] !== 'Only latin characters are allowed') {
+  throw new Error('Expected unknown message field to survive toJson');
+}
+if (serialized['field'] !== 'card_surname') {
+  throw new Error('Expected unknown field name to survive toJson');
+}
+console.log('runtime-ok');
+`,
+      'utf8'
+    );
+
+    const result = spawnSync(process.execPath, ['--loader', 'ts-node/esm/transpile-only', runtimeScript], {
+      cwd: tmpDir,
+      encoding: 'utf8'
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`Runtime parser check failed
+STDOUT:
+${result.stdout}
+STDERR:
+${result.stderr}`);
+    }
+
+    expect(result.stdout).toContain('runtime-ok');
+  });
+
+  it('preserves Locpay-style error fields outside the schema when flag is enabled', async () => {
+    const spec = {
+      components: {
+        schemas: {
+          ProposalCreateResponse: {
+            type: 'object',
+            properties: {
+              error: {type: 'boolean'},
+              data: {type: 'object'}
+            }
+          }
+        }
+      },
+      paths: {
+        '/order/create': {
+          post: {
+            operationId: 'proposalCreate',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      payment_type: {type: 'string'}
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    schema: {$ref: '#/components/schemas/ProposalCreateResponse'}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const types = resolveSchemasTypes(spec);
+    const schemasMap = resolveSchemas(spec, types, options);
+    const methods = resolvePaths(spec, types, options, schemasMap);
+
+    const tmpRoot = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpRoot, {recursive: true});
+    const tmpDir = fs.mkdtempSync(path.join(tmpRoot, 'renderer-'));
+    const targetFile = path.join(tmpDir, 'client.ts');
+    const runtimeScript = path.join(tmpDir, 'runtime-check.mjs');
+
+    const renderer = new Renderer();
+    await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile, true);
+
+    fs.writeFileSync(
+      runtimeScript,
+      `import { ProposalCreateResponseDto } from ${JSON.stringify(pathToFileURL(targetFile).href)};
+
+const payload = {
+  error: true,
+  message: 'Только латиница',
+  field: 'card_surname'
+};
+
+const parsed = ProposalCreateResponseDto.fromJson(payload);
+if (parsed.error.getOrElseValue(false) !== true) {
+  throw new Error('Expected error flag');
+}
+if (parsed.$unknown('message').getOrElse(() => '') !== 'Только латиница') {
+  throw new Error('Expected locpay message to be preserved');
+}
+if (parsed.$unknown('field').getOrElse(() => '') !== 'card_surname') {
+  throw new Error('Expected locpay field to be preserved');
 }
 console.log('runtime-ok');
 `,

@@ -15,6 +15,7 @@ export interface GenerationOptions {
     excludeTags: HashSet<string>;
     onlyUsedSchemas: boolean;
     includeSchemasByMask: HashSet<string>;
+    preserveUnknownFields: boolean;
 }
 
 export class SchemaFactory {

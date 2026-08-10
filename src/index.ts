@@ -65,6 +65,13 @@ export async function main(url: string,
     const schemasWithInplace = schemas.appendedAll(inplaceMap);
     logger.debug(`Downloaded swagger: ${schemas.size} schemas, ${paths.size} paths`);
 
-    await renderer.renderToFile(schemasWithInplace.values, paths, enableScats, targetConfig, outputFile);
+    await renderer.renderToFile(
+        schemasWithInplace.values,
+        paths,
+        enableScats,
+        targetConfig,
+        outputFile,
+        options.preserveUnknownFields
+    );
     logger.debug(`Wrote client to ${outputFile}`);
 }

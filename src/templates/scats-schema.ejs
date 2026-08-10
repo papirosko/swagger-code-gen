@@ -1,7 +1,9 @@
 <%_ const sanitizeDocLine = (line) => String(line).replace(/\*\//g, '*\\/');
 const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => `     ${sanitizeDocLine(line)}`); -%>
 <%_ if (schema.schemaType === 'object') { -%>
+<%_ const preserveUnknown = Boolean(preserveUnknownFields); -%>
 <%_ const allProps = schema.propsIncludingInherited(); -%>
+<%_ const knownFieldNames = JSON.stringify(allProps.toArray.map(p => p.name)); -%>
 export class <%= schema.normalName %>Dto {
 
     /**
@@ -10,15 +12,32 @@ export class <%= schema.normalName %>Dto {
 <%= line %>
     <%_ }); -%>
     <%_ }); -%>
+    <%_ if (preserveUnknown) { -%>
+    <%_ renderDocLines(' * @param $unknownFields Unknown JSON fields preserved from the source payload').forEach(line => { -%>
+<%= line %>
+    <%_ }); -%>
+    <%_ } -%>
     */
     constructor(
         <%_ allProps.foreach(p => { -%>
         readonly <%= p.normalisedName %>: <%- p.scatsWrapperType %>,
         <%_ }); -%>
+        <%_ if (preserveUnknown) { -%>
+        readonly $unknownFields: Readonly<Record<string, unknown>> = {},
+        <%_ } -%>
     ) {}
 
 
     static fromJson(json: <%= schema.normalName %>): <%= schema.normalName %>Dto {
+        <%_ if (preserveUnknown) { -%>
+        const knownFields = new Set<string>(<%- knownFieldNames %>);
+        const $unknownFields = Object.entries((json ?? {}) as Record<string, unknown>)
+            .filter(([key]) => !knownFields.has(key))
+            .reduce((acc, [key, value]) => {
+                acc[key] = value;
+                return acc;
+            }, {} as Record<string, unknown>);
+        <%_ } -%>
         return new <%= schema.normalName %>Dto(
             <%_ allProps.foreach(p => { _%>
             <%_ if (p.referencesObject) { _%>
@@ -36,19 +55,36 @@ export class <%= schema.normalName %>Dto {
             option(json['<%= p.name %>']) as unknown as <%- p.scatsWrapperType %>,
             <%_ } _%>
             <%_ }); _%>
+            <%_ if (preserveUnknown) { -%>
+            $unknownFields,
+            <%_ } -%>
         );
     }
 
+    <%_ if (preserveUnknown) { -%>
+    $unknown<T = unknown>(fieldName: string): Option<T> {
+        return Object.prototype.hasOwnProperty.call(this.$unknownFields, fieldName)
+            ? some(this.$unknownFields[fieldName] as T)
+            : none;
+    }
+
+    <%_ } -%>
     copy(fields: Partial<<%= schema.normalName %>Dto>): <%= schema.normalName %>Dto {
         return new <%= schema.normalName %>Dto(
         <%_ allProps.foreach(p => { -%>
             fields.<%= p.normalisedName %> === undefined ? this.<%= p.normalisedName %> : fields.<%= p.normalisedName %>,
         <%_ });  -%>
+        <%_ if (preserveUnknown) { -%>
+            fields.$unknownFields === undefined ? this.$unknownFields : fields.$unknownFields,
+        <%_ } -%>
         );
     }
 
     get toJson(): <%= schema.normalName %> {
         return {
+            <%_ if (preserveUnknown) { -%>
+            ...this.$unknownFields,
+            <%_ } -%>
             <%_ allProps.foreach(p => { _%>
             <%_ if (p.isArray || p.scatsWrapperTypeIsCollection) { _%>
             '<%= p.name %>': this.<%= p.normalisedName %>
@@ -62,7 +98,7 @@ export class <%= schema.normalName %>Dto {
             '<%= p.name %>': this.<%= p.normalisedName %>.map(value => scatsToJsonValue(value)).orUndefined,
             <%_ } _%>
             <%_ }); _%>
-        };
+        } as <%= schema.normalName %>;
     }
 }
 

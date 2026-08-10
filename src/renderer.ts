@@ -20,7 +20,8 @@ export class Renderer {
                        methods: Collection<Method>,
                        enableScats: boolean,
                        target: TargetConfig,
-                       file: string) {
+                       file: string,
+                       preserveUnknownFields = false) {
         const view = await ejs.renderFile(
             path.resolve(currentDirname, 'templates/index.ejs'),
             {
@@ -28,7 +29,8 @@ export class Renderer {
                 schemas: schemas,
                 methods: methods,
                 scats: enableScats,
-                target: target
+                target: target,
+                preserveUnknownFields: preserveUnknownFields
             });
 
         fs.writeFileSync(file, view);
