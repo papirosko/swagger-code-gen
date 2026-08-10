@@ -3,9 +3,12 @@ const renderDocLines = (text) => String(text).split(/\r?\n/).map(line => `     $
 <%_ if (schema.schemaType === 'object') { -%>
 <%_ const preserveUnknown = Boolean(preserveUnknownFields); -%>
 <%_ const allProps = schema.propsIncludingInherited(); -%>
-<%_ const knownFieldNames = JSON.stringify(allProps.toArray.map(p => p.name)); -%>
 export class <%= schema.normalName %>Dto {
 
+    <%_ if (preserveUnknown) { -%>
+    static readonly $knownFields = HashSet.of(<%- allProps.toArray.map(p => `\'${String(p.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}\'`).join(', ') %>);
+
+    <%_ } -%>
     /**
     <%_ allProps.foreach(p => { -%>
     <%_ renderDocLines(` * @param ${p.normalisedName} ${p.description.getOrElseValue('')}`).forEach(line => { -%>
@@ -30,13 +33,12 @@ export class <%= schema.normalName %>Dto {
 
     static fromJson(json: <%= schema.normalName %>): <%= schema.normalName %>Dto {
         <%_ if (preserveUnknown) { -%>
-        const knownFields = new Set<string>(<%- knownFieldNames %>);
-        const $unknownFields = Object.entries((json ?? {}) as Record<string, unknown>)
-            .filter(([key]) => !knownFields.has(key))
-            .reduce((acc, [key, value]) => {
+        const $unknownFields = Collection.from(Object.entries((json ?? {}) as Record<string, unknown>))
+            .filter(([key]) => !<%= schema.normalName %>Dto.$knownFields.contains(key))
+            .foldLeft({} as Record<string, unknown>)((acc, [key, value]) => {
                 acc[key] = value;
                 return acc;
-            }, {} as Record<string, unknown>);
+            });
         <%_ } -%>
         return new <%= schema.normalName %>Dto(
             <%_ allProps.foreach(p => { _%>

@@ -1285,6 +1285,7 @@ ${result.stderr}`);
 
     const output = fs.readFileSync(targetFile, 'utf8');
     expect(output).not.toContain('readonly $unknownFields');
+    expect(output).not.toContain('static readonly $knownFields');
     expect(output).not.toContain('$unknown<T = unknown>');
   });
 
@@ -1318,6 +1319,7 @@ ${result.stderr}`);
     await renderer.renderToFile(schemasMap.values, methods, true, browserTarget, targetFile, true);
 
     const output = fs.readFileSync(targetFile, 'utf8');
+    expect(output).toContain('static readonly $knownFields = HashSet.of(\'error\', \'data\');');
     expect(output).toContain('readonly $unknownFields: Readonly<Record<string, unknown>> = {},');
     expect(output).toContain('$unknown<T = unknown>(fieldName: string): Option<T>');
     expect(output).toContain('...this.$unknownFields,');
